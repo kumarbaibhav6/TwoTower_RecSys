@@ -1,0 +1,31 @@
+# Pinned versions resolved on Python 3.12 (macOS arm64).
+# On GPU machines (Kaggle / Azure ML) install the CUDA build of the same torch version.
+
+# core
+numpy==2.5.4
+pandas==3.1.0
+pyarrow==25.0.1
+scikit-learn==1.9.1
+tqdm==4.70.1
+psutil==7.2.2
+
+# modelling
+torch==2.14.1
+sentence-transformers==6.2.0
+
+# retrieval + serving
+faiss-cpu==1.15.1
+fastapi==0.162.0
+uvicorn==0.54.0
+httpx==0.28.1
+
+# tracking, plots, tests, data download
+mlflow==3.15.0  # matches the mlflow-skinny version azureml-mlflow resolves to
+matplotlib==3.11.2
+pytest==9.1.1
+kaggle==2.2.5
+
+# azure ml (tracking, data assets, serving)
+azure-ai-ml==1.35.2
+azure-identity==1.26.0
+azureml-mlflow==1.62.0.post6

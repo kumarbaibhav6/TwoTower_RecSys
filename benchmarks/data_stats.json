@@ -1,0 +1,41 @@
+{
+  "transactions": 31788324,
+  "duplicate_rows": 2974905,
+  "customers_total": 1371980,
+  "customers_with_purchases": 1362281,
+  "articles_total": 105542,
+  "articles_with_purchases": 104547,
+  "date_min": "2018-09-20",
+  "date_max": "2020-09-22",
+  "purchases_per_user": {
+    "mean": 23.33,
+    "p25": 3.0,
+    "median": 9.0,
+    "p75": 27.0,
+    "p90": 60.0,
+    "p99": 187.0,
+    "max": 1895
+  },
+  "purchases_per_item": {
+    "mean": 304.06,
+    "p25": 14.0,
+    "median": 65.0,
+    "p75": 286.0,
+    "p90": 793.0,
+    "p99": 3185.079999999987,
+    "max": 50287
+  },
+  "users_gt5_purchases": 860923,
+  "items_gt20_purchases": 72144,
+  "memory": {
+    "dataframe_gb": 0.668,
+    "rss_increase_gb": 1.196,
+    "dtypes": {
+      "t_dat": "datetime64[ms]",
+      "customer_idx": "int32",
+      "article_id": "int32",
+      "price": "float32",
+      "sales_channel_id": "int8"
+    }
+  }
+}
