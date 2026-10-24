@@ -105,13 +105,13 @@ The objective of this project is to build an end-to-end MLOps pipeline for a Two
 - [x] **Verification:** Parquet files exist; memory in use after loading transactions is < 2 GB; statistics match the dataset (~31.8M transactions, ~1.37M customers, ~106K articles, 2018-09-20 → 2020-09-22).
 
 ### Phase 2: Split, filtering and baselines (before any model)
-- [ ] Time-based split: train ≤ 2020-09-08, val 2020-09-09 → 09-15, test 2020-09-16 → 09-22. Evaluate only users who purchased in the target week.
-- [ ] Sparsity filter on the **training** window only (users > 5 purchases, articles > 20). Log how many users, items and transactions each filter removes.
-- [ ] `src/metrics.py`: MAP@12 (Kaggle definition), Recall@k (k = 12, 100), with unit tests on hand-built examples.
-- [ ] `src/baselines.py`:
+- [x] Time-based split: train ≤ 2020-09-08, val 2020-09-09 → 09-15, test 2020-09-16 → 09-22. Evaluate only users who purchased in the target week.
+- [x] Sparsity filter on the **training** window only (users > 5 purchases, articles > 20). Log how many users, items and transactions each filter removes.
+- [x] `src/metrics.py`: MAP@12 (Kaggle definition), Recall@k (k = 12, 100), with unit tests on hand-built examples.
+- [x] `src/baselines.py`:
   - recent popularity (top 12 items in the last training week)
   - repeat purchase (the user's most recent items, filled in with popularity)
-- [ ] **Verification:** MAP@12 / Recall@k for both baselines on val and test, saved to `benchmarks/baselines.json`. Sanity check: last-week popularity should score roughly 0.02 MAP@12. If it's far off, the split or the metric is wrong.
+- [x] **Verification:** MAP@12 / Recall@k for both baselines on val and test, saved to `benchmarks/baselines.json`. Sanity check: last-week popularity should score roughly 0.02 MAP@12. If it's far off, the split or the metric is wrong. *(Corrected in Phase 2: ~0.02 is what repeat-purchase scores; plain popularity is ~0.007-0.009, consistent with public Kaggle notebooks.)*
 
 ### Phase 3: Features and Dataset
 - [ ] Label-encode categoricals (index 0 reserved for unknown/padding):
@@ -216,3 +216,15 @@ _(Fill in during execution: anything that differed from the plan, and why.)_
 - **Azure is a Free Trial:** 4 vCPU limit and 0 T4 quota in every region checked. **GPU training moves to Colab (single GPU) and Kaggle 2x T4 (DDP)**; Azure is used for MLflow tracking, data storage and the serving demo. Section E's GPU rows no longer apply.
 - **Azure resources:** resource group `rg-twotower-recsys` (eastus); budget `twotower-150` ($150/month, alerts at 50/80/100% actual + 100% forecast); workspace `mlw-twotower` (created by `infra/azure_setup.py`); data asset `hm-processed:1` (all of `data/processed/`, including the 5% sample). Test MLflow run in experiment `phase1-data`.
 - **No Databricks/Spark:** the largest table is 0.67 GB in memory; a cluster adds cost without speed-up.
+
+
+### Phase 2 (2026-10-24)
+- **Full-data runs moved off the laptop** (8 GB RAM; the Phase 1 conversion caused heavy swapping). Local work uses the 5% sample; full data runs as Azure ML command jobs (`infra/submit_job.py`) on cluster `cpu-e4` (Standard_E4s_v3, 4 vCPU / 32 GB, 0-1 nodes, 120 s idle scale-down). Environment is the public `docker.io/library/python:3.12-slim` image plus `requirements-job.txt`, so no container registry is needed yet.
+- **Test-week history includes the val week** (history = everything before the target week); model weights still train on <= 2020-09-08 only.
+- **Ground truth** counts each article once per user per week (Kaggle definition); duplicate purchases are not double-counted.
+- **Full-data results** (`benchmarks/baselines.json`, Azure ML job `red_cushion_gnzz92zsyn`):
+  - popularity: val MAP@12 0.0066, Recall@100 0.099; test MAP@12 0.0087, Recall@100 0.118
+  - repeat purchase: val MAP@12 0.0241, Recall@100 0.111; test MAP@12 0.0246, Recall@100 0.122
+- **Sparsity filter on the full training window** removes 36.8% of users, 31.0% of items, but only 4.9% of transactions. 15-16% of evaluated users would be dropped by the filter and 7.5-8.6% have no training history at all (cold start).
+- **The 5% sample overstates item sparsity** (74% of items removed vs 31% on full data) because per-item counts shrink 20x; thresholds must be judged on full data.
+- **Full-data candidate pool (train window):** 102,967 articles bought; 71,024 with > 20 purchases; only 29,278 sold in the last 4 weeks. 913 val-week and 1,424 test-week articles never appear in training (cold-start items).

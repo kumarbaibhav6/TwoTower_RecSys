@@ -1,0 +1,11 @@
+# What NOT to upload as the code snapshot of an Azure ML job.
+data/
+models/
+mlruns/
+.venv/
+.git/
+.azureml/
+notebooks/
+__pycache__/
+*.pyc
+.DS_Store

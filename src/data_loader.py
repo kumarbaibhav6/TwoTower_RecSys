@@ -9,6 +9,7 @@ Customers get a dense int32 index (`customer_idx`) that replaces the 64-char hex
 """
 
 import argparse
+import os
 from pathlib import Path
 
 import numpy as np
@@ -19,7 +20,8 @@ import pyarrow.csv as pacsv
 import pyarrow.parquet as pq
 
 RAW_DIR = Path("data/raw")
-PROCESSED_DIR = Path("data/processed")
+# DATA_DIR lets Azure ML / Colab / Kaggle point at wherever the processed Parquet is mounted.
+PROCESSED_DIR = Path(os.environ.get("DATA_DIR", "data/processed"))
 
 # Free-text article columns that should stay plain strings (too many unique values for `category`).
 ARTICLE_TEXT_COLS = ["prod_name", "detail_desc"]
@@ -116,9 +118,17 @@ def convert(raw_dir: Path = RAW_DIR, sample_frac: float | None = None) -> Path:
     return out
 
 
-def load(name: str, sample_frac: float | None = None, columns: list[str] | None = None) -> pd.DataFrame:
-    """Load one processed table: 'transactions', 'customers' or 'articles'."""
-    table = pq.read_table(output_dir(sample_frac) / f"{name}.parquet", columns=columns)
+def load(
+    name: str,
+    sample_frac: float | None = None,
+    columns: list[str] | None = None,
+    filters: list[tuple] | None = None,
+) -> pd.DataFrame:
+    """Load one processed table: 'transactions', 'customers' or 'articles'.
+
+    `filters` are pyarrow row filters, e.g. [("t_dat", ">=", date)]; row groups outside them are skipped on read.
+    """
+    table = pq.read_table(output_dir(sample_frac) / f"{name}.parquet", columns=columns, filters=filters)
     # self_destruct frees each Arrow column as it is converted, so peak memory stays near one copy.
     return table.to_pandas(split_blocks=True, self_destruct=True)
 

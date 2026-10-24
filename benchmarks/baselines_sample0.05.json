@@ -1,0 +1,54 @@
+{
+  "results": {
+    "popularity": {
+      "val": {
+        "map@12": 0.005258343572387829,
+        "recall@12": 0.019319785447466094,
+        "recall@100": 0.0943166310773955,
+        "users": 3683
+      },
+      "test": {
+        "map@12": 0.008918302139455984,
+        "recall@12": 0.025991426596358693,
+        "recall@100": 0.10594011230750534,
+        "users": 3549
+      }
+    },
+    "repeat_purchase": {
+      "val": {
+        "map@12": 0.02379888598912945,
+        "recall@12": 0.044477297386330945,
+        "recall@100": 0.10448516499293477,
+        "users": 3683
+      },
+      "test": {
+        "map@12": 0.027168958946437418,
+        "recall@12": 0.04780045403302772,
+        "recall@100": 0.11625277751887703,
+        "users": 3549
+      }
+    }
+  },
+  "sparsity": {
+    "thresholds": {
+      "user_purchases_gt": 5,
+      "item_purchases_gt": 20
+    },
+    "train_transactions": 1571706,
+    "train_users": 67522,
+    "train_items": 75874,
+    "kept_transactions": 1190271,
+    "kept_users": 42507,
+    "kept_items": 19937,
+    "removed_transactions_pct": 24.27,
+    "removed_users_pct": 37.05,
+    "removed_items_pct": 73.72,
+    "val_users": 3683,
+    "val_users_no_train_history_pct": 7.79,
+    "val_users_dropped_by_filter_pct": 14.96,
+    "test_users": 3549,
+    "test_users_no_train_history_pct": 8.9,
+    "test_users_dropped_by_filter_pct": 15.67
+  },
+  "peak_rss_gb": 0.41
+}
