@@ -1,0 +1,58 @@
+{
+  "config": {
+    "out_dim": 64,
+    "id_dim": 64,
+    "cat_dim": 16,
+    "text_dim": 384,
+    "hidden_dim": 256,
+    "dropout": 0.1,
+    "temperature": 0.05,
+    "learn_temperature": false,
+    "use_user_id": true,
+    "use_history": true,
+    "use_text": true
+  },
+  "batch_size": 2048,
+  "user_vectors": [
+    2048,
+    64
+  ],
+  "item_vectors": [
+    2048,
+    64
+  ],
+  "scores": [
+    2048,
+    2048
+  ],
+  "vector_norms_min_max": [
+    1.0,
+    1.0
+  ],
+  "untrained_diagonal_minus_offdiagonal_score": 0.0296,
+  "cpu_forward_backward_ms": 27.4,
+  "params_sample_vocab": {
+    "item_id_embedding": 1176640,
+    "item_other": 94224,
+    "user_id_embedding": 2624192,
+    "user_other": 63206,
+    "total": 3958262,
+    "training_state_gb": 0.06
+  },
+  "params_full": {
+    "item_id_embedding": 4460096,
+    "item_other": 94224,
+    "user_id_embedding": 52710848,
+    "user_other": 63206,
+    "total": 57328374,
+    "training_state_gb": 0.92
+  },
+  "params_full_no_user_id": {
+    "item_id_embedding": 4460096,
+    "item_other": 94224,
+    "user_id_embedding": 0,
+    "user_other": 46694,
+    "total": 4601014,
+    "training_state_gb": 0.07
+  }
+}

@@ -29,3 +29,4 @@ kaggle==2.2.5
 azure-ai-ml==1.35.2
 azure-identity==1.26.0
 azureml-mlflow==1.62.0.post6
+azure-storage-blob==12.27.1  # infra/download_asset.py

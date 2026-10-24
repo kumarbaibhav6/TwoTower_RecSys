@@ -124,10 +124,10 @@ The objective of this project is to build an end-to-end MLOps pipeline for a Two
 - [x] **Verification:** batch shapes are correct; one full pass over the DataLoader runs with flat RSS memory (no leak); a leakage test asserts every history item's timestamp is < the target timestamp.
 
 ### Phase 4: Model (`src/model.py`)
-- [ ] `ItemTower`: ID + categorical embeddings + projected text embedding → MLP → 64-d → L2-normalize.
-- [ ] `UserTower`: categorical embeddings + **history encoder** (mean-pool the history item embeddings, sharing the item tower's ID embedding table) + numeric features → MLP → 64-d → L2-normalize. Make the `customer_id` embedding switchable on/off for the ablation.
-- [ ] `TwoTowerModel`: returns user and item vectors; scores are `U @ I.T / τ`.
-- [ ] **Verification:** a dummy forward pass gives a `[B, B]` score matrix; no shape errors; parameter count printed.
+- [x] `ItemTower`: ID + categorical embeddings + projected text embedding → MLP → 64-d → L2-normalize.
+- [x] `UserTower`: categorical embeddings + **history encoder** (mean-pool the history item embeddings, sharing the item tower's ID embedding table) + numeric features → MLP → 64-d → L2-normalize. Make the `customer_id` embedding switchable on/off for the ablation.
+- [x] `TwoTowerModel`: returns user and item vectors; scores are `U @ I.T / τ`.
+- [x] **Verification:** a dummy forward pass gives a `[B, B]` score matrix; no shape errors; parameter count printed.
 
 ### Phase 5: Training (`src/train.py`)
 - [ ] In-batch softmax / InfoNCE loss: labels = diagonal.
@@ -245,3 +245,10 @@ _(Fill in during execution: anything that differed from the plan, and why.)_
   - text embedding on CPU took 813 s of the 835 s build; on a GPU it would be ~1 min
 - **Memory note:** process+workers RSS reads ~8 GB because each worker's memory-mapped pages are counted again; main-process peak is 3.7 GB. Watch real usage on Colab (12 GB) in Phase 5.
 - **Tooling:** the Azure ML SDK's log streamer intermittently fails to sign blob URLs (`binascii.Error: Incorrect padding`); `infra/submit_job.py` now falls back to polling and supports `--attach JOB`.
+
+### Phase 4 (2026-10-24)
+- **Architecture** (`src/model.py`): item tower = item ID emb (64) + 4 attribute embs (16 each) + Linear(384 -> 64) on the frozen MiniLM text vector -> LayerNorm -> MLP(256, GELU, dropout 0.1) -> 64 -> L2-normalise. User tower = 3 attribute embs (16 each) + 3 numeric + optional user ID emb (64) + masked mean of the history items' **shared** item ID embeddings (64) -> same MLP shape -> 64 -> L2-normalise. Score = `u @ i.T / tau`, tau = 0.05 (fixed by default, `learn_temperature` option). Item ID padding row (0) is frozen at zero.
+- **Ablation switches:** `use_user_id`, `use_history`, `use_text`.
+- **Parameters (full vocab):** 57.3M total, of which 52.7M (92%) is the user ID table; 4.6M without it. Training state (fp32 weights + grads + AdamW moments) ~0.92 GB / ~0.07 GB. `benchmarks/model_summary.json`.
+- **Verification on a real 2,048-example sample batch (with text):** user/item vectors [2048, 64], unit norm; score matrix [2048, 2048]; untrained diagonal-minus-off-diagonal score 0.03 (no signal yet, as expected). CPU forward+backward 27 ms (sample vocab, no optimizer step).
+- **Data asset download** (`infra/download_asset.py`): `azureml-fsspec` could not be installed alongside the pinned stack (resolver conflict), so the helper reads the datastore's blob container directly with `azure-storage-blob`, using the datastore's own SAS credential; falls back to device-code login where the Azure CLI is absent (Colab/Kaggle).
