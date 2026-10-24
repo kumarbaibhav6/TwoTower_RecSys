@@ -70,10 +70,16 @@ class FeatureStore:
 class TwoTowerDataset(Dataset):
     """(user features, item features, item row, log q) for every training-window purchase."""
 
-    def __init__(self, store: FeatureStore, max_day: int | None = None):
+    def __init__(self, store: FeatureStore, max_day: int | None = None, min_day: int | None = None):
+        """Examples are purchases with min_day <= day <= max_day (default: the whole training window).
+
+        Histories always reach back to the user's first purchase; min_day only limits which purchases are targets.
+        """
         self.store = store
         max_day = store.meta["train_end_day"] if max_day is None else max_day
-        self.rows = np.flatnonzero(np.asarray(store.seq["seq_day"]) <= max_day).astype(np.int64)
+        day = np.asarray(store.seq["seq_day"])
+        keep = day <= max_day if min_day is None else (day <= max_day) & (day >= min_day)
+        self.rows = np.flatnonzero(keep).astype(np.int64)
 
     def __len__(self) -> int:
         return len(self.rows)
