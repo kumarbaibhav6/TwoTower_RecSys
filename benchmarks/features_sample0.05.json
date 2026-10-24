@@ -1,0 +1,24 @@
+{
+  "vocab_sizes": {
+    "user_vocab": 41003,
+    "item_vocab": 18385,
+    "age_bucket": 12,
+    "club_status": 4,
+    "news_frequency": 4,
+    "product_group_name": 20,
+    "colour_group_name": 51,
+    "product_type_name": 132,
+    "index_group_name": 6
+  },
+  "stats": {
+    "sequence_rows": 1436763,
+    "train_examples": 1413546,
+    "users_with_own_id": 41001,
+    "items_with_own_id": 18383,
+    "train_examples_with_empty_history_pct": 15.61,
+    "train_examples_with_full_history_pct": 47.05,
+    "train_examples_rare_item_pct": 23.57,
+    "seconds": 0.6,
+    "peak_rss_gb": 0.52
+  }
+}

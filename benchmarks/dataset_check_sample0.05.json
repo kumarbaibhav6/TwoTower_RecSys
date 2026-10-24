@@ -1,0 +1,91 @@
+{
+  "features_dir": "data/features/sample_0.05",
+  "train_examples": 1413546,
+  "text_features": false,
+  "batch_size": 2048,
+  "num_workers": 2,
+  "leakage": {
+    "examples_checked": 200000,
+    "history_slots_checked": 2539658,
+    "violations": 0,
+    "incomplete_histories": 0
+  },
+  "full_pass": {
+    "batches": 690,
+    "examples": 1413120,
+    "seconds": 5.8,
+    "examples_per_second": 242195,
+    "batch_shapes": {
+      "user.user_vocab": [
+        2048
+      ],
+      "user.age_bucket": [
+        2048
+      ],
+      "user.club_status": [
+        2048
+      ],
+      "user.news_frequency": [
+        2048
+      ],
+      "user.hist_ids": [
+        2048,
+        20
+      ],
+      "user.hist_mask": [
+        2048,
+        20
+      ],
+      "user.numeric": [
+        2048,
+        3
+      ],
+      "item.item_vocab": [
+        2048
+      ],
+      "item.product_group_name": [
+        2048
+      ],
+      "item.colour_group_name": [
+        2048
+      ],
+      "item.product_type_name": [
+        2048
+      ],
+      "item.index_group_name": [
+        2048
+      ],
+      "item_row": [
+        2048
+      ],
+      "item_log_q": [
+        2048
+      ]
+    },
+    "rss_gb_samples": [
+      1.09,
+      1.095,
+      1.092,
+      1.093,
+      1.087,
+      1.087,
+      1.081,
+      1.069,
+      1.065,
+      1.051,
+      1.037,
+      1.027,
+      1.02,
+      1.001,
+      0.995,
+      0.995,
+      0.985,
+      0.983,
+      0.974,
+      0.94,
+      0.905
+    ],
+    "rss_growth_after_warmup_gb": 0.182
+  },
+  "peak_rss_gb_main_process": 0.4
+}

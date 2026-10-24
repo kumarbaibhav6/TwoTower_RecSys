@@ -1,0 +1,5 @@
+# CPU jobs that need PyTorch (text embeddings, dataset checks). The CPU wheel avoids ~2.5 GB of CUDA libraries.
+-r requirements-job.txt
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.14.1+cpu
+sentence-transformers==6.2.0

@@ -114,14 +114,14 @@ The objective of this project is to build an end-to-end MLOps pipeline for a Two
 - [x] **Verification:** MAP@12 / Recall@k for both baselines on val and test, saved to `benchmarks/baselines.json`. Sanity check: last-week popularity should score roughly 0.02 MAP@12. If it's far off, the split or the metric is wrong. *(Corrected in Phase 2: ~0.02 is what repeat-purchase scores; plain popularity is ~0.007-0.009, consistent with public Kaggle notebooks.)*
 
 ### Phase 3: Features and Dataset
-- [ ] Label-encode categoricals (index 0 reserved for unknown/padding):
+- [x] Label-encode categoricals (index 0 reserved for unknown/padding):
   - User: `customer_id`, `age_bucket`, `club_member_status`, `fashion_news_frequency`
   - Item: `article_id`, `product_group_name`, `colour_group_name`, `product_type_name`, `index_group_name`
-- [ ] **User history features:** the last N (e.g. 20) purchased article IDs before each transaction's timestamp (padded and masked), purchase count, days since last purchase. **No leakage:** history must only include purchases strictly before the target.
-- [ ] **Item text features:** embed `detail_desc` with a small sentence-transformer (e.g. `all-MiniLM-L6-v2`), cache it to `data/item_text_emb.npy`, and feed it into the item tower through a linear projection.
-- [ ] Item sampling frequencies for logQ (from training transactions).
-- [ ] `src/dataset.py`: a PyTorch `Dataset` yielding `(user_features, item_features, item_id)` for each positive transaction; `num_workers > 0`, `pin_memory=True`.
-- [ ] **Verification:** batch shapes are correct; one full pass over the DataLoader runs with flat RSS memory (no leak); a leakage test asserts every history item's timestamp is < the target timestamp.
+- [x] **User history features:** the last N (e.g. 20) purchased article IDs before each transaction's timestamp (padded and masked), purchase count, days since last purchase. **No leakage:** history must only include purchases strictly before the target.
+- [x] **Item text features:** embed `detail_desc` with a small sentence-transformer (e.g. `all-MiniLM-L6-v2`), cache it to `data/item_text_emb.npy`, and feed it into the item tower through a linear projection.
+- [x] Item sampling frequencies for logQ (from training transactions).
+- [x] `src/dataset.py`: a PyTorch `Dataset` yielding `(user_features, item_features, item_id)` for each positive transaction; `num_workers > 0`, `pin_memory=True`.
+- [x] **Verification:** batch shapes are correct; one full pass over the DataLoader runs with flat RSS memory (no leak); a leakage test asserts every history item's timestamp is < the target timestamp.
 
 ### Phase 4: Model (`src/model.py`)
 - [ ] `ItemTower`: ID + categorical embeddings + projected text embedding → MLP → 64-d → L2-normalize.
@@ -228,3 +228,20 @@ _(Fill in during execution: anything that differed from the plan, and why.)_
 - **Sparsity filter on the full training window** removes 36.8% of users, 31.0% of items, but only 4.9% of transactions. 15-16% of evaluated users would be dropped by the filter and 7.5-8.6% have no training history at all (cold start).
 - **The 5% sample overstates item sparsity** (74% of items removed vs 31% on full data) because per-item counts shrink 20x; thresholds must be judged on full data.
 - **Full-data candidate pool (train window):** 102,967 articles bought; 71,024 with > 20 purchases; only 29,278 sold in the last 4 weeks. 913 val-week and 1,424 test-week articles never appear in training (cold-start items).
+
+### Phase 3 (2026-10-24)
+- **History = strictly earlier days.** `t_dat` has no time of day, so same-day purchases form a basket and are excluded from each other's history (otherwise the target leaks via its basket-mates).
+- **Sequence + pointers instead of materialised histories:** all purchases deduplicated per (customer, day, article) and sorted by (customer, day); each row stores `seq_hist_end`/`seq_user_start`. Same file serves train, val and test histories. Saved as `.npy` and memory-mapped so DataLoader workers share pages.
+- **Sparsity filter applied to the ID vocabulary, not to training rows:** users with <= 5 / items with <= 20 deduplicated training purchases share RARE_ID (1) but keep their other features and stay in training. ID conventions: 0 = padding/unknown, 1 = rare, 2+ = own id.
+- **Text input:** `prod_name + ". " + detail_desc` embedded with all-MiniLM-L6-v2 (384-d, L2-normalised, stored float16). Sanity check: nearest neighbours of a strap top are other strap tops.
+- **Extra user feature** beyond the plan: `has_prior` flag alongside log1p(prior purchases) and log1p(days since last purchase).
+- **Batches built in `__getitems__`** with vectorised NumPy (whole batch per call).
+- **Full data** (`benchmarks/features.json`, `benchmarks/dataset_check_full.json`, Azure ML job `stoic_book_njz6tqp1x9`, registered as data asset `hm-features:1`):
+  - 28,575,395 sequence rows; 28,127,623 training examples (after same-day dedup)
+  - own-ID vocab: 823,605 users, 69,687 items; only 0.9% of training examples hit a rare item (5% sample showed 23.6%)
+  - 15.65% of training examples have an empty history, 46.68% a full 20-item history
+  - leakage audit: 0 violations in 2,539,264 history slots (200K random examples); 0 incomplete histories
+  - full DataLoader pass: 13,734 batches of 2,048 in 181 s = 155K examples/s on 4 vCPU, 2 workers; memory flat (-0.003 GB after warm-up)
+  - text embedding on CPU took 813 s of the 835 s build; on a GPU it would be ~1 min
+- **Memory note:** process+workers RSS reads ~8 GB because each worker's memory-mapped pages are counted again; main-process peak is 3.7 GB. Watch real usage on Colab (12 GB) in Phase 5.
+- **Tooling:** the Azure ML SDK's log streamer intermittently fails to sign blob URLs (`binascii.Error: Incorrect padding`); `infra/submit_job.py` now falls back to polling and supports `--attach JOB`.
