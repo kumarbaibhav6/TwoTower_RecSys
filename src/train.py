@@ -151,6 +151,11 @@ def train(cfg: TrainConfig) -> dict:
                                     "accidental_hits_per_row": stats["accidental_hits_per_row"],
                                     "grad_norm": float(grad_norm), "lr": scheduler.get_last_lr()[0],
                                     "temperature": float(model.temperature)}, step=step)
+            if step % (cfg.log_every * 10) == 0:
+                rate = seen / (time.perf_counter() - epoch_start)
+                eta = (steps_per_epoch - batch_idx - 1) * cfg.batch_size / rate
+                print(f"  epoch {epoch} step {batch_idx + 1}/{steps_per_epoch} | loss "
+                      f"{np.mean(running[-cfg.log_every:]):.4f} | {rate:,.0f} ex/s | epoch ETA {eta / 60:.1f} min", flush=True)
 
         train_seconds = time.perf_counter() - epoch_start
         eval_start = time.perf_counter()

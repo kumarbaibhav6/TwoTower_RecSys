@@ -4,28 +4,27 @@ import os
 import resource
 import subprocess
 import sys
-from pathlib import Path
 
 import mlflow
-
-AZURE_CONFIG = Path(".azureml/config.json")
 
 
 def init_mlflow(experiment: str) -> None:
     """Point MLflow at the Azure ML workspace and select the experiment.
 
     Inside an Azure ML job the tracking URI and experiment are already set by the platform.
-    Elsewhere, MLFLOW_TRACKING_URI wins if set; otherwise the workspace in .azureml/config.json is used,
-    falling back to a local ./mlruns directory.
+    Elsewhere, MLFLOW_TRACKING_URI wins if set; otherwise the project workspace is used (from
+    .azureml/config.json, or the constants in infra/azure_setup.py on Colab/Kaggle where that file is absent).
+    Set MLFLOW_TRACKING_URI=file:./mlruns to log locally instead.
     """
     if os.environ.get("AZUREML_RUN_ID"):
         return
-    if "MLFLOW_TRACKING_URI" not in os.environ and AZURE_CONFIG.exists():
-        from azure.ai.ml import MLClient
-        from azure.identity import AzureCliCredential
+    if "MLFLOW_TRACKING_URI" not in os.environ:
+        from infra.download_asset import get_client
 
-        client = MLClient.from_config(AzureCliCredential(), path=str(AZURE_CONFIG))
-        mlflow.set_tracking_uri(client.workspaces.get(client.workspace_name).mlflow_tracking_uri)
+        client = get_client()
+        uri = client.workspaces.get(client.workspace_name).mlflow_tracking_uri
+        mlflow.set_tracking_uri(uri)
+        print(f"mlflow tracking: workspace {client.workspace_name}", flush=True)
     mlflow.set_experiment(experiment)
 
 
