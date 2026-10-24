@@ -23,6 +23,7 @@ class WeekEvaluator:
         self.store, self.week = store, week
         s = store.seq
         start_day, end_day = int(day_number([week.start])[0]), int(day_number([week.end])[0])
+        self.start_day = start_day
         day = np.asarray(s["seq_day"])
         in_week = (day >= start_day) & (day <= end_day)
         cust, item = np.asarray(s["seq_customer"])[in_week], np.asarray(s["seq_item"])[in_week]
@@ -69,19 +70,38 @@ class WeekEvaluator:
             out.append(model.user_tower({k: v.to(device) for k, v in feats.items()}))
         return torch.cat(out)
 
+    def recent_popularity(self, days: int = 7) -> np.ndarray:
+        """log(1 + sales) per item over the `days` before the week: the 'what is selling now' prior."""
+        day = np.asarray(self.store.seq["seq_day"])
+        recent = (day < self.start_day) & (day >= self.start_day - days)
+        counts = np.bincount(np.asarray(self.store.seq["seq_item"])[recent], minlength=len(self.new_items))
+        return np.log1p(counts).astype(np.float32)
+
     @torch.no_grad()
-    def recommend(self, model: TwoTowerModel, device: torch.device, k: int = TOP_K, chunk: int = 2048) -> np.ndarray:
-        """[n_users, k] item rows, best first."""
+    def scores_fn(self, model: TwoTowerModel, device: torch.device):
+        """Item and user vectors once; returns f(user_slice) -> cosine scores, for reuse across sweeps."""
         was_training = model.training
         model.eval()
         items = self.item_vectors(model, device)
         users = self.user_vectors(model, device)
-        top = [torch.topk(users[i:i + chunk] @ items.T, k, dim=1).indices.cpu() for i in range(0, len(users), chunk)]
         model.train(was_training)
+        return lambda sl: users[sl] @ items.T
+
+    @torch.no_grad()
+    def recommend(self, model: TwoTowerModel, device: torch.device, k: int = TOP_K, chunk: int = 2048,
+                  prior: np.ndarray | None = None, prior_weight: float = 0.0, scores=None) -> np.ndarray:
+        """[n_users, k] item rows, best first. Optionally adds prior_weight * prior[item] to every score."""
+        scores = scores or self.scores_fn(model, device)
+        bias = None if prior is None or prior_weight == 0 else torch.from_numpy(prior_weight * prior).to(device)
+        top = []
+        for i in range(0, len(self.users), chunk):
+            s = scores(slice(i, i + chunk))
+            top.append(torch.topk(s if bias is None else s + bias, k, dim=1).indices.cpu())
         return torch.cat(top).numpy()
 
-    def evaluate(self, model: TwoTowerModel, device: torch.device) -> dict:
-        top = self.recommend(model, device)
+    def evaluate(self, model: TwoTowerModel, device: torch.device, prior: np.ndarray | None = None,
+                 prior_weight: float = 0.0, scores=None) -> dict:
+        top = self.recommend(model, device, prior=prior, prior_weight=prior_weight, scores=scores)
         predicted = {u: row.tolist() for u, row in zip(self.users, top)}
         result = evaluate(self.actual, predicted)
 
