@@ -220,6 +220,7 @@ if __name__ == "__main__":
     with mlflow.start_run(run_name=cfg.run_name):
         result = train(cfg)
         mlflow.log_dict(result, f"train_{cfg.run_name}.json")  # so Colab results reach the repo via MLflow
+        mlflow.log_artifact(f"models/{cfg.run_name}/best.pt", "checkpoint")  # for analysis off the GPU box
     print(json.dumps({k: result[k] for k in ["run_name", "best_epoch", "val", "test"]}, indent=2))
     Path("benchmarks").mkdir(exist_ok=True)
     Path(f"benchmarks/train_{cfg.run_name}.json").write_text(json.dumps(result, indent=2) + "\n")
