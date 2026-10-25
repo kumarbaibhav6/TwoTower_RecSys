@@ -11,7 +11,8 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset
 
-from src.features import HIST_LEN, PAD_ID
+from src.features import HIST_LEN, PAD_ID, vocab_ids
+from src.split import MIN_ITEM_PURCHASES, MIN_USER_PURCHASES
 
 USER_CATEGORICAL_KEYS = ["user_vocab", "age_bucket", "club_status", "news_frequency"]
 ITEM_CATEGORICAL_KEYS = ["item_vocab", "product_group_name", "colour_group_name", "product_type_name", "index_group_name"]
@@ -33,9 +34,31 @@ class FeatureStore:
         text_path = self.dir / "item_text_emb.npy"
         self.text_emb = np.load(text_path, mmap_mode="r") if use_text and text_path.exists() else None
 
+        self._set_log_q()
+
+    def _set_log_q(self) -> None:
         counts = self.items["train_count"].astype(np.float64)
         # logQ: log of each item's share of training examples; unseen items get a pseudo-count of 1.
         self.item_log_q = np.log(np.maximum(counts, 1.0) / counts.sum()).astype(np.float32)
+
+    def refit_to(self, last_day: int) -> None:
+        """Move the end of the training window to `last_day` (e.g. to retrain on train + val).
+
+        Recomputes what was fitted on the training window in src/features.py: item/user purchase counts,
+        the ID vocabularies (same thresholds) and logQ. Sequence and history pointers are unaffected.
+        """
+        in_window = np.asarray(self.seq["seq_day"]) <= last_day
+        item_counts = np.bincount(np.asarray(self.seq["seq_item"])[in_window], minlength=len(self.items["article_id"]))
+        user_counts = np.bincount(np.asarray(self.seq["seq_customer"])[in_window], minlength=len(self.users["user_vocab"]))
+        self.items["train_count"] = item_counts.astype(np.int32)
+        self.items["item_vocab"] = vocab_ids(item_counts, MIN_ITEM_PURCHASES)
+        self.users["user_vocab"] = vocab_ids(user_counts, MIN_USER_PURCHASES)
+        self.meta = {**self.meta, "train_end_day": int(last_day), "vocab_sizes": {
+            **self.meta["vocab_sizes"],
+            "item_vocab": int(self.items["item_vocab"].max()) + 1,
+            "user_vocab": int(self.users["user_vocab"].max()) + 1,
+        }}
+        self._set_log_q()
 
     def history(self, hist_end: np.ndarray, user_start: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Last HIST_LEN purchases in [user_start, hist_end), oldest first.

@@ -22,6 +22,7 @@ import torch
 
 from src.dataset import FeatureStore, TwoTowerDataset, make_loader
 from src.evaluate import WeekEvaluator
+from src.features import day_number
 from src.loss import in_batch_softmax_loss
 from src.model import ModelConfig, TwoTowerModel, build_model, parameter_counts
 from src.split import TEST, VAL
@@ -43,6 +44,8 @@ class TrainConfig:
     max_steps_per_epoch: int | None = None  # for quick tests
     val_max_users: int | None = None  # subsample val users for faster per-epoch evaluation
     train_weeks: int | None = None  # only purchases in the last N weeks of the training window are targets
+    # Final model: train on train + val for a fixed number of epochs (no val-based selection), report test only.
+    train_through_val: bool = False
     log_every: int = 100
     seed: int = 0
     use_logq: bool = True
@@ -92,11 +95,14 @@ def train(cfg: TrainConfig) -> dict:
     use_amp = device.type == "cuda"
 
     store = FeatureStore(cfg.features_dir, use_text=cfg.use_text)
+    if cfg.train_through_val:
+        store.refit_to(int(day_number([VAL.end])[0]))
     train_end_day = store.meta["train_end_day"]
     min_day = None if cfg.train_weeks is None else train_end_day - 7 * cfg.train_weeks + 1
     dataset = TwoTowerDataset(store, min_day=min_day)
     loader = make_loader(dataset, cfg.batch_size, num_workers=cfg.num_workers, seed=cfg.seed)
-    val_eval = WeekEvaluator(store, VAL, max_users=cfg.val_max_users, seed=cfg.seed)
+    # With val inside the training data it cannot select checkpoints, so per-epoch validation is skipped.
+    val_eval = None if cfg.train_through_val else WeekEvaluator(store, VAL, max_users=cfg.val_max_users, seed=cfg.seed)
 
     model_cfg = ModelConfig.from_meta(
         store.meta, use_history=cfg.use_history, use_text=cfg.use_text, use_user_id=cfg.use_user_id,
@@ -161,6 +167,16 @@ def train(cfg: TrainConfig) -> dict:
                       f"{np.mean(running[-cfg.log_every:]):.4f} | {rate:,.0f} ex/s | epoch ETA {eta / 60:.1f} min", flush=True)
 
         train_seconds = time.perf_counter() - epoch_start
+        if val_eval is None:
+            history.append({"epoch": epoch, "train_loss": float(np.mean(running)), "train_seconds": round(train_seconds, 1),
+                            "examples_per_second": int(seen / train_seconds)})
+            mlflow.log_metrics({"epoch_train_loss": history[-1]["train_loss"], "epoch_seconds": train_seconds,
+                                "examples_per_second": history[-1]["examples_per_second"]}, step=step)
+            print(f"epoch {epoch}: loss {history[-1]['train_loss']:.4f} | {history[-1]['examples_per_second']:,} ex/s", flush=True)
+            best = {"map@12": float("nan"), "epoch": epoch}  # fixed-epoch training: keep the last epoch
+            torch.save({"model": model.state_dict(), "model_config": model_cfg.to_dict(), "train_config": asdict(cfg),
+                        "epoch": epoch}, out_dir / "best.pt")
+            continue
         eval_start = time.perf_counter()
         val = val_eval.evaluate(model, device)
         record = {"epoch": epoch, "train_loss": float(np.mean(running)), "train_seconds": round(train_seconds, 1),
@@ -184,12 +200,13 @@ def train(cfg: TrainConfig) -> dict:
                 print(f"early stopping: no val MAP@12 improvement for {cfg.patience} epochs")
                 break
 
-    # Final numbers: the best checkpoint on the full val week and, once, on the test week.
+    # Final numbers: the best checkpoint on the full val week (unless val was trained on) and, once, on test.
     checkpoint = torch.load(out_dir / "best.pt", map_location=device, weights_only=False)
     model.load_state_dict(checkpoint["model"])
-    final = {"val": WeekEvaluator(store, VAL).evaluate(model, device),
-             "test": WeekEvaluator(store, TEST).evaluate(model, device)}
-    log_metrics("best_val", final["val"], step)
+    final = {"test": WeekEvaluator(store, TEST).evaluate(model, device)}
+    if not cfg.train_through_val:
+        final["val"] = WeekEvaluator(store, VAL).evaluate(model, device)
+        log_metrics("best_val", final["val"], step)
     log_metrics("test", final["test"], step)
     mlflow.log_metric("peak_rss_gb", peak_rss_gb())
 
@@ -209,6 +226,8 @@ def parse_args() -> TrainConfig:
         parser.add_argument(f"--{name}", type=float, default=default)
     parser.add_argument("--learn-temperature", action="store_true")
     parser.add_argument("--history-mode", choices=["id", "tower"], default="id")
+    parser.add_argument("--train-through-val", action="store_true",
+                        help="final model: train on train + val for --epochs, evaluate on test only")
     for switch in ["logq", "history", "text", "user-id", "item-id", "mask-accidental-hits"]:
         parser.add_argument(f"--no-{switch}", action="store_true")
     args = vars(parser.parse_args())
@@ -226,6 +245,6 @@ if __name__ == "__main__":
         result = train(cfg)
         mlflow.log_dict(result, f"train_{cfg.run_name}.json")  # so Colab results reach the repo via MLflow
         mlflow.log_artifact(f"models/{cfg.run_name}/best.pt", "checkpoint")  # for analysis off the GPU box
-    print(json.dumps({k: result[k] for k in ["run_name", "best_epoch", "val", "test"]}, indent=2))
+    print(json.dumps({k: result[k] for k in ["run_name", "best_epoch", "val", "test"] if k in result}, indent=2))
     Path("benchmarks").mkdir(exist_ok=True)
     Path(f"benchmarks/train_{cfg.run_name}.json").write_text(json.dumps(result, indent=2) + "\n")

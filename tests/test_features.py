@@ -108,3 +108,17 @@ def test_loader_yields_full_batches(store):
     assert len(batches) == 1  # drop_last: 6 examples -> one batch of 4
     assert batches[0]["user"]["hist_ids"].shape == (4, features.HIST_LEN)
     assert batches[0]["item"]["item_vocab"].shape == (4,)
+
+
+def test_refit_to_later_day_extends_counts_vocab_and_logq(store):
+    before_counts = store.items["train_count"].copy()
+    later = int(features.day_number(["2020-09-30"])[0])
+    store.refit_to(later)
+    # The 2020-09-20 purchase of article 400 now counts as training data.
+    row_400 = int(np.flatnonzero(store.items["article_id"] == 400)[0])
+    assert before_counts[row_400] == 0 and store.items["train_count"][row_400] == 1
+    assert store.items["train_count"].sum() == before_counts.sum() + 1
+    assert store.meta["train_end_day"] == later
+    assert store.meta["vocab_sizes"]["item_vocab"] == store.items["item_vocab"].max() + 1
+    np.testing.assert_allclose(np.exp(store.item_log_q[row_400]), 1 / 7, rtol=1e-6)
+    assert len(TwoTowerDataset(store)) == 7  # every purchase is now a training example
