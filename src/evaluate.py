@@ -58,7 +58,7 @@ class WeekEvaluator:
         for start in range(0, n_items, chunk):
             rows = np.arange(start, min(start + chunk, n_items))
             feats = {k: v.to(device) for k, v in self.store.item_features(rows).items()}
-            out.append(model.item_tower(feats))
+            out.append(model.encode_items(feats))
         return torch.cat(out)
 
     @torch.no_grad()
@@ -67,7 +67,7 @@ class WeekEvaluator:
         for start in range(0, len(self.users), chunk):
             sl = slice(start, start + chunk)
             feats = self.store.user_features(self.users[sl], self.hist_end[sl], self.user_start[sl], self.today[sl])
-            out.append(model.user_tower({k: v.to(device) for k, v in feats.items()}))
+            out.append(model.encode_users({k: v.to(device) for k, v in feats.items()}))
         return torch.cat(out)
 
     def recent_popularity(self, days: int = 7) -> np.ndarray:

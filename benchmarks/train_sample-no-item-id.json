@@ -1,0 +1,93 @@
+{
+  "run_name": "sample-no-item-id",
+  "best_epoch": 1,
+  "config": {
+    "features_dir": "data/features/sample_0.05",
+    "run_name": "sample-no-item-id",
+    "epochs": 2,
+    "batch_size": 2048,
+    "lr": 0.001,
+    "weight_decay": 0.01,
+    "warmup_frac": 0.03,
+    "grad_clip": 1.0,
+    "patience": 2,
+    "num_workers": 2,
+    "max_steps_per_epoch": null,
+    "val_max_users": null,
+    "train_weeks": null,
+    "log_every": 50,
+    "seed": 0,
+    "use_logq": true,
+    "mask_accidental_hits": true,
+    "use_history": true,
+    "use_text": true,
+    "use_user_id": true,
+    "use_item_id": false,
+    "history_mode": "id",
+    "temperature": 0.05,
+    "learn_temperature": false
+  },
+  "params": {
+    "item_id_embedding": 0,
+    "user_id_embedding": 2624192,
+    "item_other": 77712,
+    "user_other": 63206,
+    "total": 2765110
+  },
+  "history": [
+    {
+      "epoch": 0,
+      "train_loss": 8.12628784387008,
+      "train_seconds": 79.9,
+      "examples_per_second": 17680,
+      "eval_seconds": 0.9,
+      "val_map@12": 0.0024039471321869216,
+      "val_recall@12": 0.007070866804779376,
+      "val_recall@100": 0.02702067987138254,
+      "val_users": 3683,
+      "val_no_history_users": 287,
+      "val_no_history_map@12": 0.0013646922183507548,
+      "val_no_history_recall@100": 0.021615231458437037,
+      "val_new_item_purchases": 1283,
+      "val_new_item_recall@100": 0.001558846453624318
+    },
+    {
+      "epoch": 1,
+      "train_loss": 7.916353453069493,
+      "train_seconds": 76.6,
+      "examples_per_second": 18451,
+      "eval_seconds": 1.1,
+      "val_map@12": 0.002670450685752652,
+      "val_recall@12": 0.008088857211780417,
+      "val_recall@100": 0.028983646124934235,
+      "val_users": 3683,
+      "val_no_history_users": 287,
+      "val_no_history_map@12": 0.0017269509429788175,
+      "val_no_history_recall@100": 0.03567695370831259,
+      "val_new_item_purchases": 1283,
+      "val_new_item_recall@100": 0.000779423226812159
+    }
+  ],
+  "val": {
+    "map@12": 0.002670450685752652,
+    "recall@12": 0.008088857211780417,
+    "recall@100": 0.028983646124934235,
+    "users": 3683,
+    "no_history_users": 287,
+    "no_history_map@12": 0.0017269509429788175,
+    "no_history_recall@100": 0.03567695370831259,
+    "new_item_purchases": 1283,
+    "new_item_recall@100": 0.000779423226812159
+  },
+  "test": {
+    "map@12": 0.0020219299272983683,
+    "recall@12": 0.0058329153190174515,
+    "recall@100": 0.027918857496700467,
+    "users": 3549,
+    "no_history_users": 296,
+    "no_history_map@12": 0.005213024417569871,
+    "no_history_recall@100": 0.027128498819675287,
+    "new_item_purchases": 2096,
+    "new_item_recall@100": 0.0019083969465648854
+  }
+}

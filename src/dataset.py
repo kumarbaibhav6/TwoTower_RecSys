@@ -37,28 +37,39 @@ class FeatureStore:
         # logQ: log of each item's share of training examples; unseen items get a pseudo-count of 1.
         self.item_log_q = np.log(np.maximum(counts, 1.0) / counts.sum()).astype(np.float32)
 
-    def history(self, hist_end: np.ndarray, user_start: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-        """Last HIST_LEN item vocab ids in [user_start, hist_end), oldest first; PAD_ID where empty."""
+    def history(self, hist_end: np.ndarray, user_start: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Last HIST_LEN purchases in [user_start, hist_end), oldest first.
+
+        Returns (item vocab ids with PAD_ID where empty, item rows with 0 where empty, validity mask).
+        """
         positions = hist_end[:, None] - HIST_LEN + np.arange(HIST_LEN)
         valid = positions >= user_start[:, None]
-        rows = self.seq["seq_item"][np.where(valid, positions, 0)]
+        rows = np.where(valid, self.seq["seq_item"][np.where(valid, positions, 0)], 0).astype(np.int64)
         ids = np.where(valid, self.items["item_vocab"][rows], PAD_ID).astype(np.int64)
-        return ids, valid
+        return ids, rows, valid
 
     def user_features(self, customers: np.ndarray, hist_end: np.ndarray, user_start: np.ndarray,
                       today: np.ndarray) -> dict[str, torch.Tensor]:
-        hist_ids, valid = self.history(hist_end, user_start)
+        hist_ids, hist_rows, valid = self.history(hist_end, user_start)
         n_prior = hist_end - user_start
         has_prior = n_prior > 0
         last_day = self.seq["seq_day"][np.maximum(hist_end - 1, 0)].astype(np.int64)
         days_since = np.where(has_prior, today - last_day, 0)
         feats = {key: torch.from_numpy(self.users[key][customers].astype(np.int64)) for key in USER_CATEGORICAL_KEYS}
         feats["hist_ids"] = torch.from_numpy(hist_ids)
+        feats["hist_rows"] = torch.from_numpy(hist_rows)  # used when history is pooled over item-tower outputs
         feats["hist_mask"] = torch.from_numpy(valid)
         feats["numeric"] = torch.from_numpy(
             np.stack([np.log1p(n_prior), np.log1p(days_since), has_prior], axis=1).astype(np.float32)
         )
         return feats
+
+    def item_table(self) -> dict[str, torch.Tensor]:
+        """Features of every item, for models that look up history items on the GPU (text kept in float16)."""
+        table = {key: torch.from_numpy(self.items[key].astype(np.int64)) for key in ITEM_CATEGORICAL_KEYS}
+        if self.text_emb is not None:
+            table["text_emb"] = torch.from_numpy(np.asarray(self.text_emb))
+        return table
 
     def item_features(self, item_rows: np.ndarray) -> dict[str, torch.Tensor]:
         feats = {key: torch.from_numpy(self.items[key][item_rows].astype(np.int64)) for key in ITEM_CATEGORICAL_KEYS}

@@ -10,21 +10,21 @@ import argparse
 import json
 from pathlib import Path
 
+import mlflow
 import torch
 
 from src.dataset import FeatureStore
 from src.evaluate import WeekEvaluator
-from src.model import ModelConfig, TwoTowerModel
+from src.model import ModelConfig, TwoTowerModel, build_model
 from src.split import TEST, VAL
+from src.tracking import init_mlflow
 
 ALPHAS = [0.0, 0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.5, 0.75, 1.0, 2.0, 5.0]  # large alpha -> pure popularity
 
 
-def load_model(path: Path, use_text: bool, device: torch.device) -> TwoTowerModel:
+def load_model(path: Path, store: FeatureStore, device: torch.device) -> TwoTowerModel:
     ck = torch.load(path, map_location=device, weights_only=False)
-    model = TwoTowerModel(ModelConfig(**ck["model_config"])).to(device)
-    model.load_state_dict(ck["model"])
-    return model.eval()
+    return build_model(ModelConfig(**ck["model_config"]), store, device, ck["model"]).eval()
 
 
 if __name__ == "__main__":
@@ -38,7 +38,7 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     ck_cfg = torch.load(args.checkpoint, map_location="cpu", weights_only=False)["model_config"]
     store = FeatureStore(args.features_dir, use_text=ck_cfg["use_text"])
-    model = load_model(args.checkpoint, ck_cfg["use_text"], device)
+    model = load_model(args.checkpoint, store, device)
 
     val = WeekEvaluator(store, VAL)
     val_scores, val_prior = val.scores_fn(model, device), val.recent_popularity(args.days)
@@ -60,4 +60,12 @@ if __name__ == "__main__":
     }
     print(json.dumps({k: result[k] for k in ["best_alpha_on_val", "test_pure_model", "test_blend"]}, indent=2))
     out = args.out or Path("benchmarks") / f"blend_{args.checkpoint.parent.name}.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(result, indent=2) + "\n")
+
+    init_mlflow("phase5-blend")
+    with mlflow.start_run(run_name=f"blend-{args.checkpoint.parent.name}"):
+        mlflow.log_params({"checkpoint": args.checkpoint.parent.name, "prior_days": args.days, "best_alpha": best_alpha})
+        for split in ("test_pure_model", "test_blend"):
+            mlflow.log_metrics({f"{split}_{k.replace('@', '_at_')}": v for k, v in result[split].items()})
+        mlflow.log_dict(result, out.name)

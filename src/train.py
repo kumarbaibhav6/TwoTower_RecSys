@@ -3,7 +3,7 @@
 Usage:
     python -m src.train --features-dir data/features/sample_0.05 --epochs 3          # local smoke test
     python -m src.train --features-dir data/features/full --run-name full-baseline   # Colab GPU
-    python -m src.train ... --no-logq | --no-history | --no-text | --no-user-id      # ablations
+    python -m src.train ... --no-logq | --no-history | --no-text | --no-user-id | --no-item-id  # ablations
 
 Logs to MLflow (experiment phase5-training), writes models/<run-name>/best.pt and
 benchmarks/train_<run-name>.json.
@@ -23,7 +23,7 @@ import torch
 from src.dataset import FeatureStore, TwoTowerDataset, make_loader
 from src.evaluate import WeekEvaluator
 from src.loss import in_batch_softmax_loss
-from src.model import ModelConfig, TwoTowerModel, parameter_counts
+from src.model import ModelConfig, TwoTowerModel, build_model, parameter_counts
 from src.split import TEST, VAL
 from src.tracking import git_sha, init_mlflow, peak_rss_gb
 
@@ -50,6 +50,8 @@ class TrainConfig:
     use_history: bool = True
     use_text: bool = True
     use_user_id: bool = True
+    use_item_id: bool = True
+    history_mode: str = "id"  # "id" or "tower" (forced to "tower" without item IDs)
     temperature: float = 0.05
     learn_temperature: bool = False
 
@@ -98,9 +100,10 @@ def train(cfg: TrainConfig) -> dict:
 
     model_cfg = ModelConfig.from_meta(
         store.meta, use_history=cfg.use_history, use_text=cfg.use_text, use_user_id=cfg.use_user_id,
+        use_item_id=cfg.use_item_id, history_mode=cfg.history_mode,
         temperature=cfg.temperature, learn_temperature=cfg.learn_temperature,
     )
-    model = TwoTowerModel(model_cfg).to(device)
+    model = build_model(model_cfg, store, device)
     optimizer = make_optimizer(model, cfg)
     steps_per_epoch = min(len(loader), cfg.max_steps_per_epoch or len(loader))
     total_steps = steps_per_epoch * cfg.epochs
@@ -205,11 +208,13 @@ def parse_args() -> TrainConfig:
     for name, default in [("lr", 1e-3), ("weight-decay", 0.01), ("temperature", 0.05)]:
         parser.add_argument(f"--{name}", type=float, default=default)
     parser.add_argument("--learn-temperature", action="store_true")
-    for switch in ["logq", "history", "text", "user-id", "mask-accidental-hits"]:
+    parser.add_argument("--history-mode", choices=["id", "tower"], default="id")
+    for switch in ["logq", "history", "text", "user-id", "item-id", "mask-accidental-hits"]:
         parser.add_argument(f"--no-{switch}", action="store_true")
     args = vars(parser.parse_args())
     flags = {"use_logq": not args.pop("no_logq"), "use_history": not args.pop("no_history"),
              "use_text": not args.pop("no_text"), "use_user_id": not args.pop("no_user_id"),
+             "use_item_id": not args.pop("no_item_id"),
              "mask_accidental_hits": not args.pop("no_mask_accidental_hits")}
     return TrainConfig(**args, **flags)
 
