@@ -176,6 +176,8 @@ def train(cfg: TrainConfig) -> dict:
             best = {"map@12": float("nan"), "epoch": epoch}  # fixed-epoch training: keep the last epoch
             torch.save({"model": model.state_dict(), "model_config": model_cfg.to_dict(), "train_config": asdict(cfg),
                         "epoch": epoch}, out_dir / "best.pt")
+            if epoch == cfg.epochs - 1:
+                upload_checkpoint(out_dir / "best.pt", epoch)
             continue
         eval_start = time.perf_counter()
         val = val_eval.evaluate(model, device)
@@ -193,6 +195,7 @@ def train(cfg: TrainConfig) -> dict:
             best = {"map@12": val["map@12"], "epoch": epoch}
             torch.save({"model": model.state_dict(), "model_config": model_cfg.to_dict(), "train_config": asdict(cfg),
                         "epoch": epoch, "val": val}, out_dir / "best.pt")
+            upload_checkpoint(out_dir / "best.pt", epoch)
             stale = 0
         else:
             stale += 1
@@ -213,6 +216,15 @@ def train(cfg: TrainConfig) -> dict:
     result = {"run_name": cfg.run_name, "best_epoch": best["epoch"], "config": asdict(cfg),
               "params": parameter_counts(model), "history": history, **final}
     return result
+
+
+def upload_checkpoint(path: Path, epoch: int) -> None:
+    """Copy a checkpoint to MLflow as soon as it is saved, so it survives the GPU session ending mid-run."""
+    try:
+        mlflow.log_artifact(str(path), f"checkpoint/epoch_{epoch}")
+        print(f"  uploaded checkpoint (epoch {epoch}) to MLflow", flush=True)
+    except Exception as e:  # an upload failure must not kill training; the local copy is still there
+        print(f"  WARNING: checkpoint upload failed: {e}", flush=True)
 
 
 def parse_args() -> TrainConfig:
@@ -244,7 +256,7 @@ if __name__ == "__main__":
     with mlflow.start_run(run_name=cfg.run_name):
         result = train(cfg)
         mlflow.log_dict(result, f"train_{cfg.run_name}.json")  # so Colab results reach the repo via MLflow
-        mlflow.log_artifact(f"models/{cfg.run_name}/best.pt", "checkpoint")  # for analysis off the GPU box
+        mlflow.set_tag("best_checkpoint", f"checkpoint/epoch_{result['best_epoch']}/best.pt")
     print(json.dumps({k: result[k] for k in ["run_name", "best_epoch", "val", "test"] if k in result}, indent=2))
     Path("benchmarks").mkdir(exist_ok=True)
     Path(f"benchmarks/train_{cfg.run_name}.json").write_text(json.dumps(result, indent=2) + "\n")
