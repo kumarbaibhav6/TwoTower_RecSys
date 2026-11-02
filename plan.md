@@ -130,18 +130,19 @@ The objective of this project is to build an end-to-end MLOps pipeline for a Two
 - [x] **Verification:** a dummy forward pass gives a `[B, B]` score matrix; no shape errors; parameter count printed.
 
 ### Phase 5: Training (`src/train.py`)
-- [ ] In-batch softmax / InfoNCE loss: labels = diagonal.
+- [x] In-batch softmax / InfoNCE loss: labels = diagonal.
   - **logQ correction:** `logits -= log(q_item)` (applied to the columns)
   - **accidental-hit masking:** set duplicate item IDs off the diagonal to −inf
   - temperature τ (config option or learnable)
-- [ ] AdamW, warmup + cosine LR schedule, AMP (fp16 on T4), gradient clipping.
-- [ ] MLflow logging: loss, LR, epoch time, throughput (samples/s), val Recall@100 and MAP@12 each epoch. Log the config and git SHA as params.
-- [ ] Early stopping and checkpoint selection on **val MAP@12** (not val loss).
+- [x] AdamW, warmup + cosine LR schedule, AMP (fp16 on T4), gradient clipping.
+- [x] MLflow logging: loss, LR, epoch time, throughput (samples/s), val Recall@100 and MAP@12 each epoch. Log the config and git SHA as params.
+- [x] Early stopping and checkpoint selection on **val MAP@12** (not val loss).
 - [ ] Ablations, each a separate MLflow run:
   - with vs. without logQ
   - with vs. without history features
   - with vs. without text features (also report the cold-start-items slice)
   - `customer_id` embedding on vs. off
+  - *Done:* logQ, user ID, 12-week window (5% sample); item ID on vs. off (full). *Not run:* history and text off (GPU budget). See notes.
 - [ ] **Verification:** at least 1 epoch completes; loss decreases; val MAP@12 is logged; the best model **beats the recent-popularity baseline on Recall@100**. (Candidate generation is judged on recall. If MAP@12 doesn't beat popularity, report it honestly and explain why.)
 
 ### Phase 6: Distributed training (real DDP)
@@ -252,3 +253,10 @@ _(Fill in during execution: anything that differed from the plan, and why.)_
 - **Parameters (full vocab):** 57.3M total, of which 52.7M (92%) is the user ID table; 4.6M without it. Training state (fp32 weights + grads + AdamW moments) ~0.92 GB / ~0.07 GB. `benchmarks/model_summary.json`.
 - **Verification on a real 2,048-example sample batch (with text):** user/item vectors [2048, 64], unit norm; score matrix [2048, 2048]; untrained diagonal-minus-off-diagonal score 0.03 (no signal yet, as expected). CPU forward+backward 27 ms (sample vocab, no optimizer step).
 - **Data asset download** (`infra/download_asset.py`): `azureml-fsspec` could not be installed alongside the pinned stack (resolver conflict), so the helper reads the datastore's blob container directly with `azure-storage-blob`, using the datastore's own SAS credential; falls back to device-code login where the Azure CLI is absent (Colab/Kaggle).
+
+### Phase 5 (2026-11-01)
+- **Compute:** Colab L4 (not T4) for training, about 600-634 s per epoch at 44-47K examples/s; Azure CPU jobs for the blend and repeat evaluation. Checkpoints upload to MLflow after every improving epoch (`checkpoint/epoch_N/best.pt`, tag `best_checkpoint`), added after a Colab reset lost `full-main`'s checkpoint.
+- **Runs (test MAP@12 / Recall@100):** `full-main` (8-epoch schedule) 0.0079 / 0.089; `full-main-6ep` 0.0075 / 0.085; `full-no-item-id` 0.0056 / 0.055. Popularity is 0.0087 / 0.118, so **the model alone does not meet the Recall@100 verification bar**: 12.8% of test purchases are articles unseen in training, and none are retrieved.
+- **Deviation, system-level fix:** popularity-prior blend (`score = cos + alpha*log1p(7-day sales)`), then repeat-purchase candidates (the user's 6 most recent purchases first). Both are tuned on val, and test is scored once. `full-main-6ep` with repeat 6, alpha 0.05 gives **0.0253 / 0.152**, against the repeat baseline's 0.0246 / 0.122. `full-no-item-id` with repeat 6, alpha 0.1 gives 0.0253 / 0.149 (new-article recall 1.6% vs 1.0%). Inside the full system the item ID adds almost nothing.
+- **Ablations not run on full data:** history off and text off, skipped for the GPU budget. The sample showed no-logQ collapses Recall@100 (0.011 vs 0.046), and no-user-id changes nothing.
+- Results: `benchmarks/train_full-*.json`, `blend_full-no-item-id.json`, `repeat_blend_full-*.json`.
