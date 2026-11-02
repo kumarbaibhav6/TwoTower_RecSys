@@ -63,3 +63,16 @@ def test_evaluate_runs_end_to_end_and_reports_slices(store):
     assert result["no_history_users"] == 1
     assert result["new_item_purchases"] == 2  # 1002 and 1119 both first appear in the week
     assert set(result) >= {"map@12", "recall@12", "no_history_map@12", "new_item_recall@100"}
+
+
+def test_repeat_candidates_go_first_newest_first_without_duplicates(store):
+    ev = WeekEvaluator(store, WEEK)
+    row = {a: i for i, a in enumerate(store.items["article_id"])}
+    lists = ev.repeat_candidates()
+    assert lists[0].tolist() == [row[1001], row[1000]]  # customer 0: 1001 (09-05) is newer than 1000 (09-01)
+    assert lists[1].tolist() == []  # customer 2 has no history
+    model = TwoTowerModel(ModelConfig.from_meta(store.meta, use_text=False))
+    top = ev.recommend(model, torch.device("cpu"), repeat=1)
+    assert top[0, 0] == row[1001] and len(set(top[0].tolist())) == 100  # only the newest one, then the ranking
+    plain = ev.recommend(model, torch.device("cpu"))
+    assert top[1].tolist() == plain[1].tolist()  # no history: the ranking unchanged

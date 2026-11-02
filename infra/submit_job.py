@@ -9,6 +9,7 @@ Usage:
 The module receives DATA_DIR (the mounted data asset) and `--out-dir` (a job output folder); whatever it
 writes there is downloaded into benchmarks/ when the job finishes. With --register NAME:VERSION, a second
 output is registered as that data asset and `{artifacts}` in the module arguments is replaced by its path.
+--data mounts another asset instead (e.g. hm-features:1); `{data}` in the module arguments is its path.
 """
 
 import argparse
@@ -45,12 +46,14 @@ def ensure_cluster(client: MLClient) -> None:
 
 
 def submit(client: MLClient, module: str, module_args: list[str], experiment: str,
-           requirements: str = "requirements-job.txt", register: str | None = None):
+           requirements: str = "requirements-job.txt", register: str | None = None,
+           data: str = f"{DATA_ASSET}:{DATA_VERSION}"):
     outputs = {"results": Output(type=AssetTypes.URI_FOLDER)}
     if register:
         name, version = register.split(":")
         outputs["artifacts"] = Output(type=AssetTypes.URI_FOLDER, name=name, version=version)
-    module_args = [a.replace("{artifacts}", "${{outputs.artifacts}}") for a in module_args]
+    module_args = [a.replace("{artifacts}", "${{outputs.artifacts}}").replace("{data}", "${{inputs.data}}")
+                   for a in module_args]
     job = command(
         code=".",
         command=(
@@ -58,7 +61,7 @@ def submit(client: MLClient, module: str, module_args: list[str], experiment: st
             # ${{inputs.*}} is only substituted inside the command, not in environment_variables.
             f"DATA_DIR=${{{{inputs.data}}}} python -m {module} --out-dir ${{{{outputs.results}}}} {' '.join(module_args)}"
         ),
-        inputs={"data": Input(type=AssetTypes.URI_FOLDER, path=f"azureml:{DATA_ASSET}:{DATA_VERSION}",
+        inputs={"data": Input(type=AssetTypes.URI_FOLDER, path=f"azureml:{data}",
                               mode=InputOutputModes.RO_MOUNT)},
         outputs=outputs,
         environment=ENVIRONMENT,
@@ -97,6 +100,8 @@ if __name__ == "__main__":
     parser.add_argument("--experiment", default=None, help="defaults to the module name")
     parser.add_argument("--requirements", default="requirements-job.txt")
     parser.add_argument("--register", default=None, help="register a second output as data asset NAME:VERSION")
+    parser.add_argument("--data", default=f"{DATA_ASSET}:{DATA_VERSION}",
+                        help="data asset NAME:VERSION mounted as DATA_DIR; `{data}` in module arguments is its path")
     parser.add_argument("--no-wait", action="store_true")
     parser.add_argument("--attach", default=None, help="wait for / download an already submitted job instead")
     args = parser.parse_args()
@@ -107,7 +112,7 @@ if __name__ == "__main__":
     else:
         ensure_cluster(client)
         job = submit(client, args.module, args.module_args, args.experiment or args.module.split(".")[-1],
-                     args.requirements, args.register)
+                     args.requirements, args.register, args.data)
         job_name = job.name
         print(f"submitted {job_name}: {job.studio_url}")
 

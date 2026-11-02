@@ -16,6 +16,15 @@ from src.split import Week
 TOP_K = 100
 
 
+def merge_repeat(ranked: np.ndarray, repeat_lists: list[np.ndarray], repeat: int, k: int = TOP_K) -> np.ndarray:
+    """Per user: up to `repeat` past purchases first, then `ranked` (needs >= k + repeat columns) minus those."""
+    merged = np.empty((len(ranked), k), dtype=ranked.dtype)
+    for u, (row, own) in enumerate(zip(ranked, repeat_lists)):
+        own = own[:repeat]
+        merged[u] = np.concatenate([own, row[~np.isin(row, own)]])[:k]
+    return merged
+
+
 class WeekEvaluator:
     """Precomputes users, their history pointers and ground truth for one target week."""
 
@@ -87,21 +96,43 @@ class WeekEvaluator:
         model.train(was_training)
         return lambda sl: users[sl] @ items.T
 
+    def repeat_candidates(self, max_items: int = TOP_K) -> list[np.ndarray]:
+        """Each user's previously bought item rows, most recent first, deduplicated, at most max_items."""
+        items = np.asarray(self.store.seq["seq_item"])
+        out = []
+        for start, end in zip(self.user_start, self.hist_end):
+            past = items[start:end][::-1]  # rows are in time order; newest first
+            _, first = np.unique(past, return_index=True)
+            out.append(past[np.sort(first)][:max_items])
+        return out
+
     @torch.no_grad()
     def recommend(self, model: TwoTowerModel, device: torch.device, k: int = TOP_K, chunk: int = 2048,
-                  prior: np.ndarray | None = None, prior_weight: float = 0.0, scores=None) -> np.ndarray:
-        """[n_users, k] item rows, best first. Optionally adds prior_weight * prior[item] to every score."""
+                  prior: np.ndarray | None = None, prior_weight: float = 0.0, scores=None,
+                  repeat: int = 0, repeat_lists: list[np.ndarray] | None = None) -> np.ndarray:
+        """[n_users, k] item rows, best first. Optionally adds prior_weight * prior[item] to every score.
+
+        With repeat > 0, each user's `repeat` most recent past purchases go first and the ranked list fills the rest.
+        """
         scores = scores or self.scores_fn(model, device)
         bias = None if prior is None or prior_weight == 0 else torch.from_numpy(prior_weight * prior).to(device)
+        repeat = min(repeat, k)
         top = []
         for i in range(0, len(self.users), chunk):
             s = scores(slice(i, i + chunk))
-            top.append(torch.topk(s if bias is None else s + bias, k, dim=1).indices.cpu())
-        return torch.cat(top).numpy()
+            top.append(torch.topk(s if bias is None else s + bias, k + repeat, dim=1).indices.cpu())
+        top = torch.cat(top).numpy()
+        if repeat == 0:
+            return top[:, :k]
+        return merge_repeat(top, repeat_lists if repeat_lists is not None else self.repeat_candidates(repeat), repeat, k)
 
-    def evaluate(self, model: TwoTowerModel, device: torch.device, prior: np.ndarray | None = None,
-                 prior_weight: float = 0.0, scores=None) -> dict:
-        top = self.recommend(model, device, prior=prior, prior_weight=prior_weight, scores=scores)
+    def evaluate(self, model: TwoTowerModel | None, device: torch.device, prior: np.ndarray | None = None,
+                 prior_weight: float = 0.0, scores=None, repeat: int = 0,
+                 repeat_lists: list[np.ndarray] | None = None, top: np.ndarray | None = None) -> dict:
+        """Metrics for the model's top-k, or for a precomputed `top` [n_users, k] of item rows."""
+        if top is None:
+            top = self.recommend(model, device, prior=prior, prior_weight=prior_weight, scores=scores,
+                                 repeat=repeat, repeat_lists=repeat_lists)
         predicted = {u: row.tolist() for u, row in zip(self.users, top)}
         result = evaluate(self.actual, predicted)
 
