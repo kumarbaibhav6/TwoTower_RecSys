@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Two-Tower Recommendations</title>
+<style>
+  :root { --bg: #f7f7f5; --card: #fff; --text: #1d1d1b; --muted: #6b6b66; --line: #e3e3de;
+          --repeat: #8a5a00; --repeat-bg: #fff3d6; --model: #0b5cad; --model-bg: #e3efff; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #161615; --card: #1f1f1d; --text: #ededea; --muted: #a0a09a; --line: #33332f;
+            --repeat: #f3c46b; --repeat-bg: #3a2e14; --model: #8cbcf5; --model-bg: #16283f; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 15px; margin: 24px 0 8px; color: var(--muted); font-weight: 600; }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  input { flex: 1 1 320px; min-width: 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px;
+          background: var(--card); color: var(--text); font: 13px ui-monospace, monospace; }
+  button { padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--card);
+           color: var(--text); cursor: pointer; font: inherit; }
+  button.primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .picks { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .picks button { font: 12px ui-monospace, monospace; padding: 4px 8px; }
+  .meta { color: var(--muted); font-size: 13px; margin-top: 12px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+  .card .name { font-weight: 600; }
+  .card .info { color: var(--muted); font-size: 13px; }
+  .tag { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 4px; margin-top: 6px; }
+  .tag.repeat { color: var(--repeat); background: var(--repeat-bg); }
+  .tag.model { color: var(--model); background: var(--model-bg); }
+  .error { color: #c0392b; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Two-tower recommendations</h1>
+  <p class="sub" id="about">H&amp;M purchase data. Loading model info…</p>
+
+  <div class="controls">
+    <input id="cid" placeholder="customer_id (64-character hash)" aria-label="customer id">
+    <button class="primary" id="go">Recommend</button>
+    <button id="random">Random customer</button>
+  </div>
+  <div class="picks" id="picks"></div>
+  <div class="meta" id="meta"></div>
+
+  <h2 id="rec-title" hidden>Recommended</h2>
+  <div class="grid" id="recs"></div>
+  <h2 id="hist-title" hidden>Recent purchases (newest first)</h2>
+  <div class="grid" id="history"></div>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+
+function card(a, tag) {
+  const label = {repeat: "Bought before", model: "For you"}[tag];
+  return `<div class="card" title="${esc(a.description)}">
+    <div class="name">${esc(a.name)}</div>
+    <div class="info">${esc(a.type)} · ${esc(a.colour)}</div>
+    <div class="info">${esc(a.department)}</div>
+    ${tag ? `<span class="tag ${tag}">${label}</span>` : ""}</div>`;
+}
+
+async function getJSON(url, opts) {
+  const r = await fetch(url, opts);
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+  return r.json();
+}
+
+async function recommend(id) {
+  id = (id || $("cid").value).trim();
+  if (!id) return;
+  $("cid").value = id;
+  $("meta").textContent = "Loading…";
+  try {
+    const [rec, profile] = await Promise.all([
+      getJSON("/recommend", {method: "POST", headers: {"Content-Type": "application/json"},
+                             body: JSON.stringify({customer_id: id, k: 12})}),
+      getJSON(`/customers/${encodeURIComponent(id)}`),
+    ]);
+    const t = rec.timing_ms;
+    $("meta").textContent = `${profile.purchases} past purchases` +
+      (profile.days_since_last != null ? `, last one ${profile.days_since_last} days before ${rec.as_of}` : "") +
+      ` · server time ${t.total} ms (user tower ${t.user_tower}, search ${t.search})`;
+    $("rec-title").hidden = false;
+    $("recs").innerHTML = rec.items.map(a => card(a, a.source)).join("");
+    $("hist-title").hidden = !profile.recent.length;
+    $("history").innerHTML = profile.recent.map(a => card(a)).join("");
+  } catch (e) {
+    $("meta").innerHTML = `<span class="error">${esc(e.message)}</span>`;
+  }
+}
+
+async function loadPicks() {
+  const {customer_ids} = await getJSON("/customers/sample?n=6");
+  $("picks").innerHTML = customer_ids.map(c => `<button data-id="${c}">${c.slice(0, 10)}…</button>`).join("");
+}
+
+$("go").onclick = () => recommend();
+$("cid").onkeydown = e => { if (e.key === "Enter") recommend(); };
+$("random").onclick = async () => recommend((await getJSON("/customers/sample?n=1")).customer_ids[0]);
+$("picks").onclick = e => { if (e.target.dataset.id) recommend(e.target.dataset.id); };
+
+getJSON("/health").then(h => {
+  const m = h.test_metrics;
+  $("about").textContent = `Recommendations as of ${h.as_of} · model ${h.model} · ` +
+    (m ? `test MAP@12 ${m["map@12"].toFixed(4)}, Recall@100 ${m["recall@100"].toFixed(3)} · ` : "") +
+    `${h.items.toLocaleString()} articles, ${h.customers.toLocaleString()} customers`;
+});
+loadPicks();
+</script>
+</body>
+</html>

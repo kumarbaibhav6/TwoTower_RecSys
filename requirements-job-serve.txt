@@ -1,0 +1,5 @@
+# Azure ML job that exports the serving bundle (src/export_embeddings.py): data deps + CPU torch + FAISS.
+-r requirements-job.txt
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.14.1+cpu
+faiss-cpu==1.15.1

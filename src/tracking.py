@@ -5,8 +5,6 @@ import resource
 import subprocess
 import sys
 
-import mlflow
-
 
 def init_mlflow(experiment: str) -> None:
     """Point MLflow at the Azure ML workspace and select the experiment.
@@ -16,6 +14,7 @@ def init_mlflow(experiment: str) -> None:
     .azureml/config.json, or the constants in infra/azure_setup.py on Colab/Kaggle where that file is absent).
     Set MLFLOW_TRACKING_URI=file:./mlruns to log locally instead.
     """
+    import mlflow  # imported here so modules that only need git_sha / peak_rss_gb (e.g. serving) don't need mlflow
     if os.environ.get("AZUREML_RUN_ID"):
         return
     if "MLFLOW_TRACKING_URI" not in os.environ:

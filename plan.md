@@ -152,13 +152,13 @@ The objective of this project is to build an end-to-end MLOps pipeline for a Two
 - [ ] **Verification:** `benchmarks/ddp_scaling.json` with samples/s and epoch time for 1 vs. 2 (vs. 4) GPUs, scaling efficiency, and confirmation that val metrics match single-GPU within noise. Also compare local vs. global negatives on Recall@100.
 
 ### Phase 7: Retrieval and serving
-- [ ] `src/export_embeddings.py`: frozen item tower → embeddings for all articles → `models/item_emb.npy` + ID map.
-- [ ] `src/build_index.py`: FAISS `IndexFlatIP` (exact, the ground truth), `IndexIVFFlat` (sweep `nlist`/`nprobe`), `IndexHNSWFlat` (sweep `efSearch`).
-- [ ] `benchmarks/ann_tradeoff`: **recall@100 against exact search vs. per-query latency** for each index; chart it.
-- [ ] `src/serve.py`: FastAPI `POST /recommend {customer_id, k}`. Look up user features (precomputed in memory), run the user tower on CPU, query FAISS, filter items the user already bought (configurable), return the top-k article IDs. Add `/health`.
-- [ ] Load test: async client at concurrency 1/8/32/64 (reuse the pattern from LLM_Inference_Project `load_test.py`).
-- [ ] Dockerfile for the serving app.
-- [ ] **Verification:** returns k valid article IDs; **p99 < 50 ms at concurrency 32** with the chosen index; recall vs. exact search ≥ 95%.
+- [x] `src/export_embeddings.py`: frozen item tower → embeddings for all articles → `models/item_emb.npy` + ID map. *(Writes a full serving bundle instead; see notes.)*
+- [x] `src/build_index.py`: FAISS `IndexFlatIP` (exact, the ground truth), `IndexIVFFlat` (sweep `nlist`/`nprobe`), `IndexHNSWFlat` (sweep `efSearch`).
+- [x] `benchmarks/ann_tradeoff`: **recall@100 against exact search vs. per-query latency** for each index; chart it. *(JSON done; the chart moves to Phase 8's `plot_results.py`.)*
+- [x] `src/serve.py`: FastAPI `POST /recommend {customer_id, k}`. Look up user features (precomputed in memory), run the user tower on CPU, query FAISS, filter items the user already bought (configurable), return the top-k article IDs. Add `/health`. *(Past purchases go first instead of being filtered out: that is the repeat + blend system that was evaluated.)*
+- [x] Load test: async client at concurrency 1/8/32/64 (reuse the pattern from LLM_Inference_Project `load_test.py`).
+- [x] Dockerfile for the serving app.
+- [ ] **Verification:** returns k valid article IDs; **p99 < 50 ms at concurrency 32** with the chosen index; recall vs. exact search ≥ 95%. *(k valid IDs: yes. Recall: exact search, so 100%. p99 at concurrency 32: 479 ms measured from a laptop over the internet on one 1-vCPU replica, so **not met**; an in-region load test and more replicas are still to do. See notes.)*
 
 ### Phase 8: Results and write-up
 - [ ] `src/plot_results.py`, producing:
@@ -260,3 +260,17 @@ _(Fill in during execution: anything that differed from the plan, and why.)_
 - **Deviation, system-level fix:** popularity-prior blend (`score = cos + alpha*log1p(7-day sales)`), then repeat-purchase candidates (the user's 6 most recent purchases first). Both are tuned on val, and test is scored once. `full-main-6ep` with repeat 6, alpha 0.05 gives **0.0253 / 0.152**, against the repeat baseline's 0.0246 / 0.122. `full-no-item-id` with repeat 6, alpha 0.1 gives 0.0253 / 0.149 (new-article recall 1.6% vs 1.0%). Inside the full system the item ID adds almost nothing.
 - **Ablations not run on full data:** history off and text off, skipped for the GPU budget. The sample showed no-logQ collapses Recall@100 (0.011 vs 0.046), and no-user-id changes nothing.
 - Results: `benchmarks/train_full-*.json`, `blend_full-no-item-id.json`, `repeat_blend_full-*.json`.
+
+### Phase 7 (2026-11-07)
+- **Serving bundle instead of bare embeddings** (`src/serving.py`, written by `src/export_embeddings.py`): model weights, item vectors, the 7-day popularity prior, each customer's last 20 purchases / purchase count / last day / 12 most recent distinct purchases as of **2020-09-16** (the test week's first day), the catalog and customer ID map. 524 MB. The cutoff is the test week so what is served is exactly what was evaluated.
+- **Popularity blend folded into the index:** items stored as `[item_vec, alpha * prior]`, queries as `[user_vec, 1]`, so one inner-product search returns `cos + alpha * prior`. repeat 6, alpha 0.05 (the val choices for `full-main-6ep`).
+- **Parity check before publishing** (all 68,984 test users, `benchmarks/serve_bundle_full-main-6ep.json`): max user-vector difference 1.5e-7; top-12 identical for 99.999% of users, full top-100 for 99.5% (float near-ties deep in the list); served test MAP@12 0.02533 / Recall@100 0.1516, identical to the offline evaluation.
+- **Exported on Azure ML** (job `dreamy_kitten_xjhppf2606`, 2 min, 4.4 GB peak). Bundle registered as data asset **`twotower-serve:2`**. `twotower-serve:1` points at an empty folder from a failed submission and should be ignored; every new export needs a new version.
+- **ANN benchmark** (`benchmarks/ann_tradeoff_full-main-6ep.json`, one thread, Apple M-series, 10K real user queries, recall@100 against exact search on the blended vectors): Flat 0.61 ms p50 / 2.4 ms p99; HNSW (M 32, efSearch 128) 97.4% recall at 0.07 ms; IVF 1024/64 98.5% at 0.07 ms. **Kept exact search:** at 105K items it costs about 0.6 ms of a ~3 ms request, and an approximate index would lose 1.5-2.6% recall and break exact parity with the evaluation.
+- **API** (`src/serve.py`): `POST /recommend` (items with source `repeat`/`model`, blended score, per-stage timings), `GET /customers/sample`, `GET /customers/{id}`, `GET /health`, and a minimal page from `web/`. Handlers are `async def` and torch/FAISS run single-threaded: requests take about a millisecond, so serial execution on the event loop beat FastAPI's thread pool (GIL contention grew the tail). Article display fields are prebuilt once (a pandas row lookup per item cost more than the model).
+- **Deployment:** Azure Container Apps (`twotower-api` in environment `cae-twotower`, 1 vCPU / 2 GiB, min 0 / max 1 replicas), image in ACR Basic `acrtwotowerrecsys`, pulled with the app's system-assigned managed identity (no registry password). `infra/deploy_containerapp.sh` is idempotent. Live at https://twotower-api.greencliff-f3400348.eastus.azurecontainerapps.io. Container memory 1.25 GiB.
+- **Free Trial blocks ACR Tasks** (`az acr build` → `TasksOperationsNotAllowed`), so the image is built locally (`--platform linux/amd64`) and pushed.
+- **First deploy crash-looped:** the serving import chain reached `src/tracking.py`, which imported `mlflow` at module level, and the image has no mlflow. `mlflow` is now imported inside `init_mlflow`, and the Dockerfile runs `python -c "import src.serve"` so a missing package fails the build instead of the deployment.
+- **Cold start:** with scale-to-zero, the first request after idle waits for the ~1.5 GB image pull plus ~5 s of loading (over 4 minutes on the first deploy). Use min replicas 1 while sharing the link.
+- **Load test** (`benchmarks/load_test_aca-1cpu-from-laptop.json`, one replica, client on a laptop over the internet): server time 2.7-3.5 ms per request; concurrency 1: 19 req/s, p50 46 ms, p99 135 ms (the ~45 ms floor is network round trip); concurrency 32: 227 req/s, p50 118 ms, p99 479 ms; concurrency 64: 114 req/s, p99 2.5 s. One vCPU saturates around 230 req/s, so concurrency 32+ queues. **The p99 < 50 ms target is not met.** To do: load test from inside East US (an Azure ML job) and allow more replicas.
+- **macOS only:** pip `faiss-cpu` and `torch` each bundle OpenMP and crash when both run multi-threaded; local runs need `OMP_NUM_THREADS=1 KMP_DUPLICATE_LIB_OK=TRUE`. Linux (the image, Azure ML) is unaffected.

@@ -1,0 +1,63 @@
+{
+  "run_name": "full-main-6ep",
+  "git_sha": "9dfaa53",
+  "cutoff_date": "2020-09-16",
+  "cutoff_day": 727,
+  "repeat": 6,
+  "alpha": 0.05,
+  "prior_days": 7,
+  "index": {
+    "type": "flat"
+  },
+  "test_metrics": {
+    "map@12": 0.025331292630712873,
+    "recall@12": 0.05183765918751887,
+    "recall@100": 0.15162289077036617
+  },
+  "parity": {
+    "users": 68984,
+    "max_user_vector_diff": 1.4901161193847656e-07,
+    "identical_lists_pct": 99.498,
+    "identical_top12_pct": 99.999,
+    "served_metrics": {
+      "map@12": 0.025331292630712873,
+      "recall@12": 0.05183765918751887,
+      "recall@100": 0.15162289077036617,
+      "users": 68984,
+      "no_history_users": 5572,
+      "no_history_map@12": 0.005849711102302716,
+      "no_history_recall@100": 0.08878166104625569,
+      "new_item_purchases": 27276,
+      "new_item_recall@100": 0.009568851737791465
+    },
+    "reference_metrics": {
+      "map@12": 0.025331292630712873,
+      "recall@12": 0.05183765918751887,
+      "recall@100": 0.15162289077036617,
+      "users": 68984,
+      "no_history_users": 5572,
+      "no_history_map@12": 0.005849711102302716,
+      "no_history_recall@100": 0.08878166104625569,
+      "new_item_purchases": 27276,
+      "new_item_recall@100": 0.009568851737791465
+    },
+    "served_seconds": 20.7
+  },
+  "bundle_mb": {
+    "articles.parquet": 5.0,
+    "config.json": 0.0,
+    "customer_ids.npy": 87.8,
+    "item_emb.npy": 27.0,
+    "items.npz": 2.1,
+    "model.pt": 229.3,
+    "prior.npy": 0.4,
+    "user_hist_rows.npy": 109.8,
+    "user_last_day.npy": 2.7,
+    "user_n_prior.npy": 5.5,
+    "user_repeat.npy": 65.9,
+    "users.npz": 13.7
+  },
+  "bundle_total_mb": 549.2,
+  "seconds": 119.4,
+  "peak_rss_gb": 4.35
+}

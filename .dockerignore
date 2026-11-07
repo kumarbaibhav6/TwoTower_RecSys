@@ -1,0 +1,7 @@
+# Only src/, web/, the requirements and one serving bundle go into the image.
+*
+!requirements-serve.txt
+!src/
+!web/
+!models/serve/
+src/__pycache__
