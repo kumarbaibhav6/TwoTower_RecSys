@@ -1,0 +1,672 @@
+{
+  "checkpoint": "full-main-6ep",
+  "alpha": 0.05,
+  "blend_repeat": 6,
+  "best_repeat_on_val": {
+    "popularity": 6,
+    "two_tower": 6,
+    "blend": 6
+  },
+  "weeks": {
+    "val": {
+      "users": 72019,
+      "new_item_purchase_share": 0.05,
+      "seen_items_users": 71071,
+      "metrics": {
+        "popularity,repeat=0": {
+          "map@12": 0.00688,
+          "recall@12": 0.02311,
+          "recall@100": 0.09973,
+          "no_history_map@12": 0.00665,
+          "new_item_recall@100": 0.0,
+          "new_item_recall@12": 0.0,
+          "seen_items_map@12": 0.00711
+        },
+        "popularity,repeat=3": {
+          "map@12": 0.02368,
+          "recall@12": 0.04396,
+          "recall@100": 0.12173,
+          "no_history_map@12": 0.00665,
+          "new_item_recall@100": 0.0,
+          "new_item_recall@12": 0.0,
+          "seen_items_map@12": 0.02441
+        },
+        "popularity,repeat=6": {
+          "map@12": 0.02462,
+          "recall@12": 0.04737,
+          "recall@100": 0.12593,
+          "no_history_map@12": 0.00665,
+          "new_item_recall@100": 0.0,
+          "new_item_recall@12": 0.0,
+          "seen_items_map@12": 0.02539
+        },
+        "popularity,repeat=12": {
+          "map@12": 0.02445,
+          "recall@12": 0.04446,
+          "recall@100": 0.12797,
+          "no_history_map@12": 0.00665,
+          "new_item_recall@100": 0.0,
+          "new_item_recall@12": 0.0,
+          "seen_items_map@12": 0.02521
+        },
+        "two_tower,repeat=0": {
+          "map@12": 0.00862,
+          "recall@12": 0.02523,
+          "recall@100": 0.09506,
+          "no_history_map@12": 0.00481,
+          "new_item_recall@100": 0.0,
+          "new_item_recall@12": 0.0,
+          "seen_items_map@12": 0.00893
+        },
+        "two_tower,repeat=3": {
+          "map@12": 0.02412,
+          "recall@12": 0.04558,
+          "recall@100": 0.11306,
+          "no_history_map@12": 0.00481,
+          "new_item_recall@100": 0.0,
+          "new_item_recall@12": 0.0,
+          "seen_items_map@12": 0.02486
+        },
+        "two_tower,repeat=6": {
+          "map@12": 0.02479,
+          "recall@12": 0.0481,
+          "recall@100": 0.11671,
+          "no_history_map@12": 0.00481,
+          "new_item_recall@100": 0.0,
+          "new_item_recall@12": 0.0,
+          "seen_items_map@12": 0.02556
+        },
+        "two_tower,repeat=12": {
+          "map@12": 0.02441,
+          "recall@12": 0.04412,
+          "recall@100": 0.11817,
+          "no_history_map@12": 0.00481,
+          "new_item_recall@100": 0.0,
+          "new_item_recall@12": 0.0,
+          "seen_items_map@12": 0.02517
+        },
+        "blend,repeat=0": {
+          "map@12": 0.01147,
+          "recall@12": 0.03375,
+          "recall@100": 0.13482,
+          "no_history_map@12": 0.00732,
+          "new_item_recall@100": 0.0,
+          "new_item_recall@12": 0.0,
+          "seen_items_map@12": 0.01189
+        },
+        "blend,repeat=3": {
+          "map@12": 0.02534,
+          "recall@12": 0.05265,
+          "recall@100": 0.15177,
+          "no_history_map@12": 0.00732,
+          "new_item_recall@100": 0.0,
+          "new_item_recall@12": 0.0,
+          "seen_items_map@12": 0.02613
+        },
+        "blend,repeat=6": {
+          "map@12": 0.02558,
+          "recall@12": 0.05381,
+          "recall@100": 0.15481,
+          "no_history_map@12": 0.00732,
+          "new_item_recall@100": 0.0,
+          "new_item_recall@12": 0.0,
+          "seen_items_map@12": 0.02638
+        },
+        "blend,repeat=12": {
+          "map@12": 0.02476,
+          "recall@12": 0.04602,
+          "recall@100": 0.15511,
+          "no_history_map@12": 0.00732,
+          "new_item_recall@100": 0.0,
+          "new_item_recall@12": 0.0,
+          "seen_items_map@12": 0.02553
+        }
+      },
+      "matched": {
+        "blend-popularity": {
+          "a": 0.02558,
+          "b": 0.02462,
+          "diff": 0.00096,
+          "diff_ci95": [
+            0.00082,
+            0.00111
+          ],
+          "relative": 0.039,
+          "relative_ci95": [
+            0.033,
+            0.0453
+          ],
+          "share_of_resamples_a_not_better": 0.0
+        },
+        "two_tower-popularity": {
+          "a": 0.02479,
+          "b": 0.02462,
+          "diff": 0.00017,
+          "diff_ci95": [
+            0.0,
+            0.00032
+          ],
+          "relative": 0.0068,
+          "relative_ci95": [
+            0.0001,
+            0.0132
+          ],
+          "share_of_resamples_a_not_better": 0.024
+        },
+        "blend-two_tower": {
+          "a": 0.02558,
+          "b": 0.02479,
+          "diff": 0.00079,
+          "diff_ci95": [
+            0.00069,
+            0.00092
+          ],
+          "relative": 0.0319,
+          "relative_ci95": [
+            0.0276,
+            0.0371
+          ],
+          "share_of_resamples_a_not_better": 0.0
+        }
+      },
+      "tuned": {
+        "blend-popularity": {
+          "a": 0.02558,
+          "b": 0.02462,
+          "diff": 0.00096,
+          "diff_ci95": [
+            0.00082,
+            0.00111
+          ],
+          "relative": 0.039,
+          "relative_ci95": [
+            0.033,
+            0.0453
+          ],
+          "share_of_resamples_a_not_better": 0.0
+        },
+        "two_tower-popularity": {
+          "a": 0.02479,
+          "b": 0.02462,
+          "diff": 0.00017,
+          "diff_ci95": [
+            0.0,
+            0.00032
+          ],
+          "relative": 0.0068,
+          "relative_ci95": [
+            0.0001,
+            0.0132
+          ],
+          "share_of_resamples_a_not_better": 0.024
+        },
+        "blend-two_tower": {
+          "a": 0.02558,
+          "b": 0.02479,
+          "diff": 0.00079,
+          "diff_ci95": [
+            0.00069,
+            0.00092
+          ],
+          "relative": 0.0319,
+          "relative_ci95": [
+            0.0276,
+            0.0371
+          ],
+          "share_of_resamples_a_not_better": 0.0
+        }
+      },
+      "map@12_by_history": {
+        "0": {
+          "users": 5395,
+          "popularity": 0.00665,
+          "two_tower": 0.00481,
+          "blend": 0.00732
+        },
+        "1-5": {
+          "users": 6030,
+          "popularity": 0.03493,
+          "two_tower": 0.03616,
+          "blend": 0.03729
+        },
+        "6-20": {
+          "users": 15451,
+          "popularity": 0.02384,
+          "two_tower": 0.02378,
+          "blend": 0.02469
+        },
+        "21+": {
+          "users": 45143,
+          "popularity": 0.02566,
+          "two_tower": 0.02601,
+          "blend": 0.02651
+        }
+      },
+      "seen_items_matched": {
+        "blend-popularity": {
+          "a": 0.02638,
+          "b": 0.02539,
+          "diff": 0.00099,
+          "diff_ci95": [
+            0.00085,
+            0.00114
+          ],
+          "relative": 0.0392,
+          "relative_ci95": [
+            0.0333,
+            0.0454
+          ],
+          "share_of_resamples_a_not_better": 0.0
+        },
+        "two_tower-popularity": {
+          "a": 0.02556,
+          "b": 0.02539,
+          "diff": 0.00018,
+          "diff_ci95": [
+            2e-05,
+            0.00035
+          ],
+          "relative": 0.0069,
+          "relative_ci95": [
+            0.001,
+            0.0137
+          ],
+          "share_of_resamples_a_not_better": 0.011
+        },
+        "blend-two_tower": {
+          "a": 0.02638,
+          "b": 0.02556,
+          "diff": 0.00082,
+          "diff_ci95": [
+            0.00069,
+            0.00092
+          ],
+          "relative": 0.032,
+          "relative_ci95": [
+            0.0271,
+            0.0364
+          ],
+          "share_of_resamples_a_not_better": 0.0
+        }
+      },
+      "seen_items_no_repeat": {
+        "blend-popularity": {
+          "a": 0.01189,
+          "b": 0.00711,
+          "diff": 0.00478,
+          "diff_ci95": [
+            0.00436,
+            0.00519
+          ],
+          "relative": 0.6716,
+          "relative_ci95": [
+            0.5987,
+            0.7505
+          ],
+          "share_of_resamples_a_not_better": 0.0
+        },
+        "two_tower-popularity": {
+          "a": 0.00893,
+          "b": 0.00711,
+          "diff": 0.00182,
+          "diff_ci95": [
+            0.00133,
+            0.00232
+          ],
+          "relative": 0.2559,
+          "relative_ci95": [
+            0.1822,
+            0.3364
+          ],
+          "share_of_resamples_a_not_better": 0.0
+        },
+        "blend-two_tower": {
+          "a": 0.01189,
+          "b": 0.00893,
+          "diff": 0.00296,
+          "diff_ci95": [
+            0.00256,
+            0.00332
+          ],
+          "relative": 0.331,
+          "relative_ci95": [
+            0.2811,
+            0.38
+          ],
+          "share_of_resamples_a_not_better": 0.0
+        }
+      }
+    },
+    "test": {
+      "users": 68984,
+      "new_item_purchase_share": 0.1276,
+      "seen_items_users": 65681,
+      "metrics": {
+        "popularity,repeat=0": {
+          "map@12": 0.00869,
+          "recall@12": 0.0256,
+          "recall@100": 0.11957,
+          "no_history_map@12": 0.00772,
+          "new_item_recall@100": 0.0044,
+          "new_item_recall@12": 0.0044,
+          "seen_items_map@12": 0.00956
+        },
+        "popularity,repeat=3": {
+          "map@12": 0.02473,
+          "recall@12": 0.04862,
+          "recall@100": 0.14082,
+          "no_history_map@12": 0.00772,
+          "new_item_recall@100": 0.01184,
+          "new_item_recall@12": 0.00781,
+          "seen_items_map@12": 0.02583
+        },
+        "popularity,repeat=6": {
+          "map@12": 0.02536,
+          "recall@12": 0.05155,
+          "recall@100": 0.14413,
+          "no_history_map@12": 0.00772,
+          "new_item_recall@100": 0.01393,
+          "new_item_recall@12": 0.00986,
+          "seen_items_map@12": 0.02642
+        },
+        "popularity,repeat=12": {
+          "map@12": 0.02475,
+          "recall@12": 0.04531,
+          "recall@100": 0.14483,
+          "no_history_map@12": 0.00772,
+          "new_item_recall@100": 0.01485,
+          "new_item_recall@12": 0.01078,
+          "seen_items_map@12": 0.02573
+        },
+        "two_tower,repeat=0": {
+          "map@12": 0.0075,
+          "recall@12": 0.0217,
+          "recall@100": 0.08479,
+          "no_history_map@12": 0.00373,
+          "new_item_recall@100": 0.0,
+          "new_item_recall@12": 0.0,
+          "seen_items_map@12": 0.00834
+        },
+        "two_tower,repeat=3": {
+          "map@12": 0.02377,
+          "recall@12": 0.04299,
+          "recall@100": 0.1045,
+          "no_history_map@12": 0.00373,
+          "new_item_recall@100": 0.00748,
+          "new_item_recall@12": 0.00748,
+          "seen_items_map@12": 0.02478
+        },
+        "two_tower,repeat=6": {
+          "map@12": 0.0246,
+          "recall@12": 0.04649,
+          "recall@100": 0.1087,
+          "no_history_map@12": 0.00373,
+          "new_item_recall@100": 0.00957,
+          "new_item_recall@12": 0.00957,
+          "seen_items_map@12": 0.02561
+        },
+        "two_tower,repeat=12": {
+          "map@12": 0.02433,
+          "recall@12": 0.04334,
+          "recall@100": 0.11063,
+          "no_history_map@12": 0.00373,
+          "new_item_recall@100": 0.01049,
+          "new_item_recall@12": 0.01049,
+          "seen_items_map@12": 0.02528
+        },
+        "blend,repeat=0": {
+          "map@12": 0.01016,
+          "recall@12": 0.03068,
+          "recall@100": 0.13012,
+          "no_history_map@12": 0.00585,
+          "new_item_recall@100": 0.0,
+          "new_item_recall@12": 0.0,
+          "seen_items_map@12": 0.01129
+        },
+        "blend,repeat=3": {
+          "map@12": 0.02497,
+          "recall@12": 0.05061,
+          "recall@100": 0.14826,
+          "no_history_map@12": 0.00585,
+          "new_item_recall@100": 0.00748,
+          "new_item_recall@12": 0.00748,
+          "seen_items_map@12": 0.02612
+        },
+        "blend,repeat=6": {
+          "map@12": 0.02533,
+          "recall@12": 0.05184,
+          "recall@100": 0.15162,
+          "no_history_map@12": 0.00585,
+          "new_item_recall@100": 0.00957,
+          "new_item_recall@12": 0.00957,
+          "seen_items_map@12": 0.02641
+        },
+        "blend,repeat=12": {
+          "map@12": 0.02465,
+          "recall@12": 0.04518,
+          "recall@100": 0.15217,
+          "no_history_map@12": 0.00585,
+          "new_item_recall@100": 0.01049,
+          "new_item_recall@12": 0.01049,
+          "seen_items_map@12": 0.02562
+        }
+      },
+      "matched": {
+        "blend-popularity": {
+          "a": 0.02533,
+          "b": 0.02536,
+          "diff": -2e-05,
+          "diff_ci95": [
+            -0.00021,
+            0.00019
+          ],
+          "relative": -0.0009,
+          "relative_ci95": [
+            -0.0083,
+            0.0072
+          ],
+          "share_of_resamples_a_not_better": 0.589
+        },
+        "two_tower-popularity": {
+          "a": 0.0246,
+          "b": 0.02536,
+          "diff": -0.00075,
+          "diff_ci95": [
+            -0.00093,
+            -0.00055
+          ],
+          "relative": -0.0298,
+          "relative_ci95": [
+            -0.0368,
+            -0.0217
+          ],
+          "share_of_resamples_a_not_better": 1.0
+        },
+        "blend-two_tower": {
+          "a": 0.02533,
+          "b": 0.0246,
+          "diff": 0.00073,
+          "diff_ci95": [
+            0.00063,
+            0.00084
+          ],
+          "relative": 0.0297,
+          "relative_ci95": [
+            0.0254,
+            0.0343
+          ],
+          "share_of_resamples_a_not_better": 0.0
+        }
+      },
+      "tuned": {
+        "blend-popularity": {
+          "a": 0.02533,
+          "b": 0.02536,
+          "diff": -2e-05,
+          "diff_ci95": [
+            -0.00021,
+            0.00019
+          ],
+          "relative": -0.0009,
+          "relative_ci95": [
+            -0.0083,
+            0.0072
+          ],
+          "share_of_resamples_a_not_better": 0.589
+        },
+        "two_tower-popularity": {
+          "a": 0.0246,
+          "b": 0.02536,
+          "diff": -0.00075,
+          "diff_ci95": [
+            -0.00093,
+            -0.00055
+          ],
+          "relative": -0.0298,
+          "relative_ci95": [
+            -0.0368,
+            -0.0217
+          ],
+          "share_of_resamples_a_not_better": 1.0
+        },
+        "blend-two_tower": {
+          "a": 0.02533,
+          "b": 0.0246,
+          "diff": 0.00073,
+          "diff_ci95": [
+            0.00063,
+            0.00084
+          ],
+          "relative": 0.0297,
+          "relative_ci95": [
+            0.0254,
+            0.0343
+          ],
+          "share_of_resamples_a_not_better": 0.0
+        }
+      },
+      "map@12_by_history": {
+        "0": {
+          "users": 5572,
+          "popularity": 0.00772,
+          "two_tower": 0.00373,
+          "blend": 0.00585
+        },
+        "1-5": {
+          "users": 5827,
+          "popularity": 0.03559,
+          "two_tower": 0.03476,
+          "blend": 0.03591
+        },
+        "6-20": {
+          "users": 14569,
+          "popularity": 0.02459,
+          "two_tower": 0.02417,
+          "blend": 0.02501
+        },
+        "21+": {
+          "users": 43016,
+          "popularity": 0.02651,
+          "two_tower": 0.02607,
+          "blend": 0.02653
+        }
+      },
+      "seen_items_matched": {
+        "blend-popularity": {
+          "a": 0.02641,
+          "b": 0.02642,
+          "diff": -1e-05,
+          "diff_ci95": [
+            -0.00024,
+            0.00021
+          ],
+          "relative": -0.0004,
+          "relative_ci95": [
+            -0.0091,
+            0.0078
+          ],
+          "share_of_resamples_a_not_better": 0.55
+        },
+        "two_tower-popularity": {
+          "a": 0.02561,
+          "b": 0.02642,
+          "diff": -0.00082,
+          "diff_ci95": [
+            -0.00104,
+            -0.00062
+          ],
+          "relative": -0.031,
+          "relative_ci95": [
+            -0.039,
+            -0.0233
+          ],
+          "share_of_resamples_a_not_better": 1.0
+        },
+        "blend-two_tower": {
+          "a": 0.02641,
+          "b": 0.02561,
+          "diff": 0.00081,
+          "diff_ci95": [
+            0.00069,
+            0.00091
+          ],
+          "relative": 0.0315,
+          "relative_ci95": [
+            0.0268,
+            0.0361
+          ],
+          "share_of_resamples_a_not_better": 0.0
+        }
+      },
+      "seen_items_no_repeat": {
+        "blend-popularity": {
+          "a": 0.01129,
+          "b": 0.00956,
+          "diff": 0.00172,
+          "diff_ci95": [
+            0.00106,
+            0.00238
+          ],
+          "relative": 0.1801,
+          "relative_ci95": [
+            0.1053,
+            0.2593
+          ],
+          "share_of_resamples_a_not_better": 0.0
+        },
+        "two_tower-popularity": {
+          "a": 0.00834,
+          "b": 0.00956,
+          "diff": -0.00123,
+          "diff_ci95": [
+            -0.00186,
+            -0.0006
+          ],
+          "relative": -0.1281,
+          "relative_ci95": [
+            -0.1868,
+            -0.0656
+          ],
+          "share_of_resamples_a_not_better": 1.0
+        },
+        "blend-two_tower": {
+          "a": 0.01129,
+          "b": 0.00834,
+          "diff": 0.00295,
+          "diff_ci95": [
+            0.00256,
+            0.00328
+          ],
+          "relative": 0.3535,
+          "relative_ci95": [
+            0.3001,
+            0.4018
+          ],
+          "share_of_resamples_a_not_better": 0.0
+        }
+      }
+    }
+  },
+  "seconds": 414.5,
+  "peak_rss_gb": 3.33
+}
