@@ -15,6 +15,7 @@ import torch
 
 from src.dataset import FeatureStore
 from src.evaluate import WeekEvaluator
+from src.features import day_number
 from src.model import ModelConfig, TwoTowerModel, build_model
 from src.split import TEST, VAL
 from src.tracking import init_mlflow
@@ -23,7 +24,16 @@ ALPHAS = [0.0, 0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.5, 0.75, 1.0, 2.0, 5.0]  # lar
 
 
 def load_model(path: Path, store: FeatureStore, device: torch.device) -> TwoTowerModel:
+    """Load a checkpoint and switch `store` to the user/item mappings it was trained with.
+
+    Call before building evaluators from `store`: they read its training-window counts.
+    """
     ck = torch.load(path, map_location=device, weights_only=False)
+    if "vocab" in ck:
+        store.restore_vocab(ck["vocab"])
+    elif ck.get("train_config", {}).get("train_through_val"):
+        # Checkpoints from before vocabularies were saved: redo the deterministic refit the training run did.
+        store.refit_to(int(day_number([VAL.end])[0]))
     return build_model(ModelConfig(**ck["model_config"]), store, device, ck["model"]).eval()
 
 

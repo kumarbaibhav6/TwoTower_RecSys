@@ -122,3 +122,76 @@ def test_refit_to_later_day_extends_counts_vocab_and_logq(store):
     assert store.meta["vocab_sizes"]["item_vocab"] == store.items["item_vocab"].max() + 1
     np.testing.assert_allclose(np.exp(store.item_log_q[row_400]), 1 / 7, rtol=1e-6)
     assert len(TwoTowerDataset(store)) == 7  # every purchase is now a training example
+
+
+def test_fit_log_q_counts_only_the_training_targets(store):
+    # Purchases on/after 2020-01-04 in the training window: 300 and 100 (01-05), 200 (02-01).
+    store.fit_log_q(int(features.day_number(["2020-01-04"])[0]))
+    rows = {a: int(np.flatnonzero(store.items["article_id"] == a)[0]) for a in [100, 200, 300, 400]}
+    np.testing.assert_allclose(np.exp(store.item_log_q[[rows[a] for a in [100, 200, 300]]]), 1 / 3, rtol=1e-6)
+    store.fit_log_q(None)  # back to the whole window: 100 bought 3 times out of 6
+    np.testing.assert_allclose(np.exp(store.item_log_q[rows[100]]), 3 / 6, rtol=1e-6)
+
+
+@pytest.fixture
+def refit_store(store, monkeypatch):
+    """The store after a train-through-val style refit that gives article 400 its own ID (fresh files: rare)."""
+    monkeypatch.setattr("src.dataset.MIN_ITEM_PURCHASES", 0)
+    monkeypatch.setattr("src.dataset.MIN_USER_PURCHASES", 0)
+    store.refit_to(int(features.day_number(["2020-09-30"])[0]))
+    assert item_vocab(store, [400]) != item_vocab(FeatureStore(store.dir), [400])
+    return store
+
+
+def test_restore_vocab_reproduces_the_refit_mapping(refit_store):
+    fresh = FeatureStore(refit_store.dir)
+    fresh.restore_vocab(refit_store.vocab_state())
+    for table in ("items", "users"):
+        key = "item_vocab" if table == "items" else "user_vocab"
+        np.testing.assert_array_equal(getattr(fresh, table)[key], getattr(refit_store, table)[key])
+    assert fresh.meta == refit_store.meta
+    np.testing.assert_array_equal(fresh.item_log_q, refit_store.item_log_q)
+
+
+def test_restore_vocab_rejects_mismatched_features(refit_store):
+    state = refit_store.vocab_state()
+    state["item_vocab"] = state["item_vocab"][:-1]
+    with pytest.raises(ValueError, match="item_vocab"):
+        FeatureStore(refit_store.dir).restore_vocab(state)
+
+
+def test_load_model_uses_the_checkpoint_vocab(refit_store, tmp_path):
+    import torch
+
+    from src.blend_eval import load_model
+    from src.model import ModelConfig, TwoTowerModel
+
+    torch.manual_seed(0)
+    cfg = ModelConfig.from_meta(refit_store.meta, use_text=False)
+    model = TwoTowerModel(cfg).eval()
+    path = tmp_path / "best.pt"
+    torch.save({"model": model.state_dict(), "model_config": cfg.to_dict(), "vocab": refit_store.vocab_state()}, path)
+
+    fresh = FeatureStore(refit_store.dir)
+    loaded = load_model(path, fresh, torch.device("cpu"))
+    rows = np.arange(len(fresh.items["article_id"]))
+    with torch.no_grad():
+        expected = model.encode_items(refit_store.item_features(rows))
+        actual = loaded.encode_items(fresh.item_features(rows))
+    torch.testing.assert_close(actual, expected)  # article 400 reads its own ID row, not the rare row
+
+
+def test_load_model_refits_old_train_through_val_checkpoints(store, tmp_path):
+    import torch
+
+    from src.blend_eval import load_model
+    from src.model import ModelConfig, TwoTowerModel
+    from src.split import VAL
+
+    cfg = ModelConfig.from_meta(store.meta, use_text=False)
+    path = tmp_path / "old.pt"
+    torch.save({"model": TwoTowerModel(cfg).state_dict(), "model_config": cfg.to_dict(),
+                "train_config": {"train_through_val": True}}, path)
+    fresh = FeatureStore(store.dir)
+    load_model(path, fresh, torch.device("cpu"))
+    assert fresh.meta["train_end_day"] == int(features.day_number([VAL.end])[0])

@@ -99,6 +99,7 @@ def train(cfg: TrainConfig) -> dict:
         store.refit_to(int(day_number([VAL.end])[0]))
     train_end_day = store.meta["train_end_day"]
     min_day = None if cfg.train_weeks is None else train_end_day - 7 * cfg.train_weeks + 1
+    store.fit_log_q(min_day)
     dataset = TwoTowerDataset(store, min_day=min_day)
     loader = make_loader(dataset, cfg.batch_size, num_workers=cfg.num_workers, seed=cfg.seed)
     # With val inside the training data it cannot select checkpoints, so per-epoch validation is skipped.
@@ -175,7 +176,7 @@ def train(cfg: TrainConfig) -> dict:
             print(f"epoch {epoch}: loss {history[-1]['train_loss']:.4f} | {history[-1]['examples_per_second']:,} ex/s", flush=True)
             best = {"map@12": float("nan"), "epoch": epoch}  # fixed-epoch training: keep the last epoch
             torch.save({"model": model.state_dict(), "model_config": model_cfg.to_dict(), "train_config": asdict(cfg),
-                        "epoch": epoch}, out_dir / "best.pt")
+                        "epoch": epoch, "vocab": store.vocab_state()}, out_dir / "best.pt")
             if epoch == cfg.epochs - 1:
                 upload_checkpoint(out_dir / "best.pt", epoch)
             continue
@@ -194,7 +195,7 @@ def train(cfg: TrainConfig) -> dict:
         if val["map@12"] > best["map@12"]:
             best = {"map@12": val["map@12"], "epoch": epoch}
             torch.save({"model": model.state_dict(), "model_config": model_cfg.to_dict(), "train_config": asdict(cfg),
-                        "epoch": epoch, "val": val}, out_dir / "best.pt")
+                        "epoch": epoch, "val": val, "vocab": store.vocab_state()}, out_dir / "best.pt")
             upload_checkpoint(out_dir / "best.pt", epoch)
             stale = 0
         else:

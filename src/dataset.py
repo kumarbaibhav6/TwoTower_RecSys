@@ -36,10 +36,48 @@ class FeatureStore:
 
         self._set_log_q()
 
-    def _set_log_q(self) -> None:
-        counts = self.items["train_count"].astype(np.float64)
+    def _set_log_q(self, counts: np.ndarray | None = None) -> None:
+        counts = (self.items["train_count"] if counts is None else counts).astype(np.float64)
         # logQ: log of each item's share of training examples; unseen items get a pseudo-count of 1.
         self.item_log_q = np.log(np.maximum(counts, 1.0) / counts.sum()).astype(np.float32)
+
+    def fit_log_q(self, min_day: int | None) -> None:
+        """Count logQ over the targets actually trained on: purchases with min_day <= day <= train_end_day.
+
+        With min_day None that is the whole training window (train_count). A recent-window run (--train-weeks)
+        samples items at their recent frequency, so it needs recent counts.
+        """
+        if min_day is None:
+            self._set_log_q()
+            return
+        day = np.asarray(self.seq["seq_day"])
+        in_window = (day >= min_day) & (day <= self.meta["train_end_day"])
+        self._set_log_q(np.bincount(np.asarray(self.seq["seq_item"])[in_window],
+                                    minlength=len(self.items["article_id"])))
+
+    def vocab_state(self) -> dict:
+        """What maps users and items to embedding rows, saved with each checkpoint (see restore_vocab)."""
+        return {"train_end_day": int(self.meta["train_end_day"]), "item_vocab": self.items["item_vocab"].copy(),
+                "user_vocab": self.users["user_vocab"].copy(), "train_count": self.items["train_count"].copy()}
+
+    def restore_vocab(self, state: dict) -> None:
+        """Use a checkpoint's mappings, so its ID embeddings line up with the right users and items.
+
+        A model trained after refit_to (e.g. --train-through-val) has different vocab ids than the feature files.
+        Same-sized tables load without error either way, so without this, embeddings would silently be read for
+        the wrong users and items.
+        """
+        for key, table in (("item_vocab", self.items), ("user_vocab", self.users)):
+            if len(state[key]) != len(table[key]):
+                raise ValueError(f"checkpoint {key} covers {len(state[key])} rows, features have {len(table[key])}")
+        self.items["item_vocab"], self.users["user_vocab"] = state["item_vocab"], state["user_vocab"]
+        self.items["train_count"] = state["train_count"]
+        self.meta = {**self.meta, "train_end_day": state["train_end_day"], "vocab_sizes": {
+            **self.meta["vocab_sizes"],
+            "item_vocab": int(state["item_vocab"].max()) + 1,
+            "user_vocab": int(state["user_vocab"].max()) + 1,
+        }}
+        self._set_log_q()
 
     def refit_to(self, last_day: int) -> None:
         """Move the end of the training window to `last_day` (e.g. to retrain on train + val).
